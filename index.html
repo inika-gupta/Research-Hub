@@ -294,15 +294,16 @@ body {
 
 /* ── Legend ───────────────────────────────────────────────────────── */
 #legend {
-  position: absolute; top: 14px; right: 14px;
-  background: rgba(15,17,23,0.75);
+  position: absolute; bottom: 20px; right: 16px; z-index: 15;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 8px 12px; font-size: 10px; color: rgba(220,225,240,0.45);
+  background: rgba(14,17,32,0.7);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-  padding: 10px 14px; font-size: 11px; color: rgba(220,225,240,0.7); line-height: 2;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
 }
-#legend h4 { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; color: rgba(255,255,255,0.3); }
-.lr { display: flex; align-items: center; gap: 8px; }
-.lc { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+#legend h4 { display: none; }
+.lr { display: flex; align-items: center; gap: 6px; }
+.lc { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .lc-d { background: rgba(30,50,120,0.4); border: 1.5px dashed rgba(168,196,255,0.5); }
 .lc-s { background: rgba(255,255,255,0.08); border: 1.5px solid rgba(200,210,255,0.55); }
 .lc-r { background: rgba(120,200,120,0.15); border: 1px solid rgba(120,210,140,0.55); }
@@ -325,14 +326,29 @@ body {
   color: rgba(230,235,255,0.88);
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
-#profile-back {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; color: rgba(168,196,255,0.6); cursor: pointer;
-  padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(168,196,255,0.18);
-  background: rgba(168,196,255,0.06); margin-bottom: 28px; user-select: none;
-  transition: all 0.12s;
+#profile-nav {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 28px;
 }
-#profile-back:hover { background: rgba(168,196,255,0.14); color: #a8c4ff; }
+.pnav-btn {
+  font-size: 13px; color: rgba(168,196,255,0.6); cursor: pointer;
+  padding: 5px 11px; border-radius: 8px; border: 1px solid rgba(168,196,255,0.18);
+  background: rgba(168,196,255,0.06); user-select: none; transition: all 0.12s;
+  display: inline-flex; align-items: center;
+}
+.pnav-btn:hover { background: rgba(168,196,255,0.14); color: #a8c4ff; }
+.pnav-btn.disabled { opacity: 0.2; pointer-events: none; }
+#pnav-close { font-size: 11px; margin-left: auto; gap: 5px; }
+#canvas-reset-top {
+  position: absolute; top: 12px; left: 12px; z-index: 12;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(18,22,40,0.72); border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.45); font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.12s;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  user-select: none;
+}
+#canvas-reset-top:hover { background: rgba(100,220,200,0.12); color: rgba(100,220,200,1); border-color: rgba(100,220,200,0.4); }
 #profile-panel h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #fff; margin-bottom: 4px; }
 #profile-panel .p-tag {
   display: inline-block; font-size: 10px; padding: 2px 9px; border-radius: 20px;
@@ -544,6 +560,7 @@ body {
 </div>
 
 <div id="canvas-wrap">
+  <div id="canvas-reset-top" title="Reset — collapse everything">↺</div>
   <svg id="canvas"></svg>
   <div id="tooltip"></div>
   <div id="controls">
@@ -553,13 +570,12 @@ body {
     <div class="cbtn" id="breset" title="Reset — collapse everything">↺</div>
   </div>
   <div id="legend">
-    <h4>Legend</h4>
     <div class="lr"><div class="lc lc-d"></div> Domain</div>
     <div class="lr"><div class="lc lc-s"></div> Sub-domain</div>
     <div class="lr"><div class="lc lc-r"></div> Researcher</div>
     <div class="lr"><div class="lc" style="background:rgba(100,220,200,0.08);border:1.5px solid rgba(100,220,200,0.65)"></div> Collaborator</div>
-    <div class="lr"><div class="lc lc-p" style="width:7px;height:7px"></div> Publication</div>
-    <div class="lr"><div style="width:20px;height:2px;background:rgba(100,220,200,0.65);border-radius:1px;flex-shrink:0;box-shadow:0 0 4px rgba(100,220,200,0.3)"></div> Collab connection</div>
+    <div class="lr"><div class="lc lc-p" style="width:6px;height:6px"></div> Publication</div>
+    <div class="lr"><div style="width:16px;height:2px;background:rgba(100,220,200,0.65);border-radius:1px;flex-shrink:0"></div> Collab connection</div>
   </div>
   <div id="chat-bar">
     <div id="chat-results"></div>
@@ -584,7 +600,11 @@ body {
 
 <div id="profile-panel">
   <div id="profile-inner">
-    <div id="profile-back">← Back to network</div>
+    <div id="profile-nav">
+      <div id="pnav-back" class="pnav-btn disabled" title="Back">←</div>
+      <div id="pnav-fwd"  class="pnav-btn disabled" title="Forward">→</div>
+      <div id="pnav-close" class="pnav-btn" title="Back to network">↩ Network</div>
+    </div>
     <div id="profile-body"></div>
   </div>
 </div>
@@ -1010,22 +1030,29 @@ function drawPubDots(g, d) {
     pts.push([cx, cy]);
     const size = 1.5 + rng() * 1.5;   // 1.5–3 px, varied
     const opacity = 0.55 + rng() * 0.45;
-    g.append("circle")
+    const dotHandler = (e) => {
+      e.stopPropagation();
+      openProfilePanel(d);
+      requestAnimationFrame(() => {
+        const pubSection = document.getElementById("profile-pubs-section");
+        if (pubSection) pubSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    // Invisible larger hit-area so tiny dots are easy to click
+    const visDot = g.append("circle")
       .attr("class", "pub-dot")
       .attr("cx", cx).attr("cy", cy)
       .attr("r",  size)
       .style("opacity", opacity)
+      .style("pointer-events", "none");  // hit-area handles all events
+    g.append("circle")
+      .attr("cx", cx).attr("cy", cy)
+      .attr("r", 7)
+      .style("fill", "transparent")
       .style("cursor", "pointer")
-      .on("click", (e) => {
-        e.stopPropagation();
-        openProfilePanel(d);
-        requestAnimationFrame(() => {
-          const pubSection = document.getElementById("profile-pubs-section");
-          if (pubSection) pubSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      })
-      .on("mouseenter", function() { d3.select(this).attr("r", size + 1.5).style("opacity", 1); })
-      .on("mouseleave", function() { d3.select(this).attr("r", size).style("opacity", opacity); });
+      .on("click", dotHandler)
+      .on("mouseenter", function() { visDot.attr("r", size + 1.5).style("opacity", 1); })
+      .on("mouseleave", function() { visDot.attr("r", size).style("opacity", opacity); });
   }
 
   if (total > 55) {
@@ -1294,21 +1321,24 @@ function handleClick(d) {
     if (!selectedResId) zoomToNode(d);
   } else if (d.type === "researcher") {
     if (d._isCollabGuest) {
-      // Clicking a collaborator bubble → switch to that researcher's profile
+      // Clicking a collaborator bubble → switch to that researcher's full profile
       selectResearcher(d.id);
-      buildGraph(); showDetail(d);
+      buildGraph(); openProfilePanel(d);
       return;
     }
     if (expRes.has(d.id)) {
-      // Clicking the same researcher again → collapse
-      clearResearcher();
-      detEl.classList.remove("open");
-      buildGraph();
+      // Clicking the same researcher again → open full profile
+      openProfilePanel(d);
     } else {
       // New researcher selected
       selectResearcher(d.id);
-      showDetail(d);
       buildGraph();
+      // If profile panel is already open, switch it directly — no popup
+      if (profilePanel.classList.contains("open")) {
+        openProfilePanel(d);
+      } else {
+        showDetail(d);
+      }
     }
   }
 }
@@ -1456,7 +1486,23 @@ svg.on("click", () => { detEl.classList.remove("open"); });
 const profilePanel = document.getElementById("profile-panel");
 const profileBody  = document.getElementById("profile-body");
 
-function openProfilePanel(d) {
+// ── Profile navigation history ────────────────────────────────────────────────
+let _profileHistory = [];   // array of researcher IDs visited
+let _profileHistoryIdx = -1;
+
+function _updateProfileNavBtns() {
+  document.getElementById("pnav-back").classList.toggle("disabled", _profileHistoryIdx <= 0);
+  document.getElementById("pnav-fwd").classList.toggle("disabled", _profileHistoryIdx >= _profileHistory.length - 1);
+}
+
+function openProfilePanel(d, _fromNav) {
+  if (!_fromNav) {
+    // New navigation: truncate forward history, push this entry
+    _profileHistory = _profileHistory.slice(0, _profileHistoryIdx + 1);
+    _profileHistory.push(d.id);
+    _profileHistoryIdx = _profileHistory.length - 1;
+  }
+  _updateProfileNavBtns();
   const cnt = filteredCount(d);
 
   // Header
@@ -1515,7 +1561,7 @@ function openProfilePanel(d) {
   cw.classList.add("split");
   detEl.classList.remove("open");
   setFilterCollapsed(true);
-  document.getElementById("legend").style.display = "none";
+  // legend stays visible at bottom bar
 
   // Draw mini collab network after DOM is ready
   requestAnimationFrame(() => initMiniCollabNetwork(d));
@@ -1602,10 +1648,26 @@ function closeProfilePanel() {
   profilePanel.classList.remove("open");
   cw.classList.remove("split");
   setFilterCollapsed(false);
-  document.getElementById("legend").style.display = "";
+  _profileHistory = [];
+  _profileHistoryIdx = -1;
+  _updateProfileNavBtns();
 }
 
-document.getElementById("profile-back").addEventListener("click", closeProfilePanel);
+document.getElementById("pnav-close").addEventListener("click", closeProfilePanel);
+document.getElementById("pnav-back").addEventListener("click", () => {
+  if (_profileHistoryIdx > 0) {
+    _profileHistoryIdx--;
+    const d = nodeById[_profileHistory[_profileHistoryIdx]];
+    if (d) { selectResearcher(d.id); buildGraph(); openProfilePanel(d, true); }
+  }
+});
+document.getElementById("pnav-fwd").addEventListener("click", () => {
+  if (_profileHistoryIdx < _profileHistory.length - 1) {
+    _profileHistoryIdx++;
+    const d = nodeById[_profileHistory[_profileHistoryIdx]];
+    if (d) { selectResearcher(d.id); buildGraph(); openProfilePanel(d, true); }
+  }
+});
 
 // ── Filter panel toggle ───────────────────────────────────────────────────────
 const filterPanel  = document.getElementById("filter-panel");
@@ -1661,14 +1723,16 @@ document.addEventListener("mouseup", () => {
 document.getElementById("bzi").onclick  = () => svg.transition().duration(220).call(zoom.scaleBy, 1.5);
 document.getElementById("bzo").onclick  = () => svg.transition().duration(220).call(zoom.scaleBy, 1/1.5);
 document.getElementById("bfit").onclick = fitView;
-document.getElementById("breset").onclick = () => {
+function resetNetwork() {
   expSubs.clear(); expLabs.clear(); expRes.clear();
   selectedResId = null; _needsResZoom = false;
   detEl.classList.remove("open");
   closeProfilePanel();
   buildGraph();
   fitView();
-};
+}
+document.getElementById("breset").onclick = resetNetwork;
+document.getElementById("canvas-reset-top").onclick = resetNetwork;
 
 // ── Year slider ───────────────────────────────────────────────────────────────
 function updateSliderUI() {
