@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>UW Research Network</title>
+<title>UW Research Hub</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -115,6 +115,7 @@ body {
 .lk-sl { stroke: rgba(180,180,210,0.25); stroke-width: 1.0; }
 .lk-sr { stroke: rgba(180,200,180,0.2); stroke-width: 0.8; stroke-dasharray: 4 4; }
 .lk-lr { stroke: rgba(180,200,180,0.15); stroke-width: 0.7; stroke-dasharray: 3 4; }
+.lk-home { stroke: rgba(168,196,255,0.18); stroke-width: 0.9; stroke-dasharray: 3 5; }
 /* Collaboration arcs */
 .collab-arc { fill: none; stroke: rgba(255,190,80,0.07); pointer-events: none; }
 /* On-click researcher collab highlight lines */
@@ -170,13 +171,22 @@ body {
 .node.researcher:hover circle { filter: brightness(1.2); }
 
 .node.expanded > circle { stroke-opacity: 1; stroke-width: 2.5; }
-.node.dimmed { opacity: 0.07; pointer-events: none; }
+.node.dimmed { opacity: 0.12; }
+/* Researchers visible in expanded subdomain but not matching the query — neutral white */
+.node.search-vis { opacity: 0.45; }
+.node.search-vis circle { stroke: rgba(255,255,255,0.35) !important; stroke-width: 1.5px !important; }
+.node.search-vis text { fill: rgba(255,255,255,0.5) !important; }
 .node.hl circle {
   stroke: rgba(100,220,200,0.9) !important;
   stroke-width: 3 !important;
   filter: drop-shadow(0 0 10px rgba(100,220,200,0.7)) !important;
 }
 .node.hl text { fill: rgba(100,255,220,0.95) !important; }
+.node.focus circle {
+  stroke: #fff !important; stroke-width: 3.5px !important;
+  filter: drop-shadow(0 0 14px rgba(255,255,255,0.9)) drop-shadow(0 0 6px rgba(100,220,200,1)) !important;
+}
+.node.focus text { fill: #fff !important; font-weight: 700 !important; }
 
 .node text { pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
 .t-dom-name { fill: rgba(200,215,255,0.9); font-weight: 700; }
@@ -294,7 +304,7 @@ body {
 
 /* ── Legend ───────────────────────────────────────────────────────── */
 #legend {
-  position: absolute; bottom: 20px; right: 16px; z-index: 15;
+  position: absolute; bottom: 96px; right: 16px; z-index: 15;
   display: flex; flex-direction: column; gap: 5px;
   padding: 8px 12px; font-size: 10px; color: rgba(220,225,240,0.45);
   background: rgba(14,17,32,0.7);
@@ -318,9 +328,9 @@ body {
   transition: width 0.38s cubic-bezier(0.34,1.1,0.64,1);
   position: relative; z-index: 20;
 }
-#profile-panel.open { width: 46vw; }
+#profile-panel.open { width: 38vw; }
 #profile-inner {
-  width: 46vw; height: 100vh;
+  width: 38vw; height: 100vh;
   overflow-y: auto; overflow-x: hidden;
   padding: 32px 36px 60px;
   color: rgba(230,235,255,0.88);
@@ -440,6 +450,7 @@ body {
 }
 .sr-item:last-child { border-bottom: none; }
 .sr-item:hover { background: rgba(255,255,255,0.05); }
+.sr-item.active { background: rgba(100,220,200,0.08); border-left: 2px solid rgba(100,220,200,0.6); padding-left: 4px; }
 .sr-item .cr-type { margin-top: 2px; flex-shrink: 0; }
 .sr-name { font-size: 12px; color: rgba(230,235,255,0.88); font-weight: 500; line-height: 1.3; }
 .sr-sub  { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; line-height: 1.35; }
@@ -505,7 +516,7 @@ body {
 
 <div id="filter-toggle" title="Toggle filters">‹</div>
 <div id="filter-panel">
-  <h2>UW Research</h2>
+  <h2>UW Research Hub</h2>
   <div class="panel-sub">University of Washington · Research Network</div>
 
   <input type="search" id="search-box" placeholder="Search researchers, topics…">
@@ -612,7 +623,7 @@ body {
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-const MAX_RES   = 8;
+const MAX_RES   = 20;
 const MAX_PUB_DOTS = 20;  // dots drawn around researcher
 
 // ── Viewport ──────────────────────────────────────────────────────────────────
@@ -816,7 +827,13 @@ function getActive() {
     if (!visSubIdsActive.has(sid)) return;
     const sub = nodeById[sid];
     if (!sub) return;
-    sub._topRes.forEach(r => {
+    // Always show topRes; also force-include any search-matched researchers
+    // from _allRes who would otherwise be ranked out of the visible set.
+    const toShow = new Map(sub._topRes.map(r => [r.id, r]));
+    if (_searchMatchIds.size) {
+      (sub._allRes || []).forEach(r => { if (_searchMatchIds.has(r.id)) toShow.set(r.id, r); });
+    }
+    toShow.forEach(r => {
       const rn = ensureResNode(r, sub);
       add(rn);
       hierL.push({ source: sid, target: rn.id, lt: "sr" });
@@ -839,7 +856,8 @@ function getActive() {
     if (!seen.has(rid)) add(res);
   });
 
-  // Show collaborators for every expanded researcher, positioned near their OWN subdomain/domain
+  // Show collaborators anchored to THEIR HOME subdomain, not floating near the selected researcher.
+  // The green collab line still shows who they work with; the dashed home link shows where they live.
   Object.values(nodeById).forEach(n => { n._isCollabGuest = false; });
   expRes.forEach(rid => {
     const res = nodeById[rid];
@@ -854,26 +872,35 @@ function getActive() {
       if (!sub) return;
       const resData = sub._allRes && sub._allRes.find(r => r.id === cid);
       if (!resData) return;
-      // Spawn near the SELECTED researcher so connections stay short and readable.
-      // The domain label on the node tells users where they're from.
+
       const rn = ensureResNode(resData, res);
-      const ax = res.x || 0, ay = res.y || 0;
-      const dx = (rn.x || 0) - ax, dy = (rn.y || 0) - ay;
-      // Spawn guests in a ring well outside the subdomain radius so they don't overlap the main cluster
-      const subNode = nodeById[resParentMap[res.id]];
-      const clusterR = subNode ? (subNode._r || getR(subNode)) + 60 : 120;
-      if (Math.hypot(dx, dy) < clusterR || (!rn.x && !rn.y)) {
-        const angle = (ci / Math.max(nc, 1)) * 2 * Math.PI - Math.PI / 2;
-        rn.x = ax + Math.cos(angle) * (clusterR + (rn._r || 12) + 20);
-        rn.y = ay + Math.sin(angle) * (clusterR + (rn._r || 12) + 20);
+
+      // If the collaborator's home subdomain is already expanded, slot them in
+      // as a proper researcher there (not a floating guest).
+      if (expSubs.has(subId) && visSubIdsActive.has(subId)) {
+        add(rn);
+        hierL.push({ source: subId, target: rn.id, lt: "sr" });
+        return; // not a collab-guest — they belong here
+      }
+
+      // Otherwise anchor near HOME subdomain (always visible in graph)
+      const hx = sub.x || 0, hy = sub.y || 0;
+      const subR = sub._r || getR(sub);
+      const spawnR = subR + (rn._r || 12) + 18;
+      const ddx = (rn.x || 0) - hx, ddy = (rn.y || 0) - hy;
+      if (Math.hypot(ddx, ddy) < subR || (!rn.x && !rn.y)) {
+        const angle = (ci / Math.max(nc, 1)) * 2 * Math.PI;
+        rn.x = hx + Math.cos(angle) * spawnR;
+        rn.y = hy + Math.sin(angle) * spawnR;
         rn.vx = 0; rn.vy = 0;
       }
+
       rn._isCollabGuest = true;
       rn._guestSubName = sub.name || "";
       rn._guestDomName = sub._domName || "";
       add(rn);
-      // Weak link to selected researcher to keep cluster tight
-      hierL.push({ source: rid, target: rn.id, lt: "guest" });
+      // Home link: anchors guest to their own subdomain
+      hierL.push({ source: subId, target: rn.id, lt: "home" });
     });
   });
 
@@ -1149,7 +1176,8 @@ function buildGraph() {
           (d.type==="researcher" && expRes.has(d.id))) cls += " expanded";
       if (d._isCollabGuest) cls += " collab-guest";
       if (collabSubIds.has(d.id)) cls += " collab-sub-hl";
-      if (searchQ) cls += matchesSearch(d) ? " hl" : " dimmed";
+      cls += searchClass(d);
+      if (_searchFocusId && d.id === _searchFocusId) cls += " focus";
       return cls;
     })
     .attr("transform", d => `translate(${d.x||0},${d.y||0})`)
@@ -1207,9 +1235,9 @@ function buildGraph() {
         if (d.lt==="sl") return (src?._r||32) + 24 + 10;
         if (d.lt==="sr") return (src?._r||32) + (tgt?._r||12) + 28;
         if (d.lt==="lr") return (src?._r||18) + 14;
-        if (d.lt==="guest") return (src?._r||30) + (tgt?._r||12) + 24;
+        if (d.lt==="home") return (src?._r||40) + (tgt?._r||12) + 20;
         return 30;
-      }).strength(d => d.lt==="guest" ? 0.5 : 0.65))
+      }).strength(d => d.lt==="home" ? 0.55 : 0.65))
     .force("charge", d3.forceManyBody().strength(d => {
       if (d.type==="domain")     return 0;
       if (d.type==="subdomain")  return -120;
@@ -1287,37 +1315,45 @@ function zoomToNode(d) {
 // ── Click handler ─────────────────────────────────────────────────────────────
 function handleClick(d) {
   if (d.type === "domain") {
-    // Use domMeta for correct subId lookup (domain nodes don't carry children)
     const meta = domMeta.find(m => m.id === d.id);
     const subIds = meta ? meta.subIds : [];
-    const anyOpen = subIds.some(sid => expSubs.has(sid));
-    if (anyOpen) {
-      subIds.forEach(sid => { expSubs.delete(sid); expLabs.delete(sid); });
-      // Only clear researcher if they live inside this domain
+    // Only count subdomains the USER manually opened — not search-auto-expanded ones
+    const anyUserOpen = subIds.some(sid => expSubs.has(sid) && !_searchAutoExpanded.has(sid));
+    if (anyUserOpen) {
+      // Collapse only user-opened subs (leave search-auto-expanded ones)
+      subIds.forEach(sid => {
+        if (!_searchAutoExpanded.has(sid)) { expSubs.delete(sid); expLabs.delete(sid); }
+      });
       if (selectedResId && subIds.includes(resParentMap[selectedResId])) {
         clearResearcher(); detEl.classList.remove("open");
       }
     } else {
-      subIds.forEach(sid => expSubs.add(sid));
+      // Expand: mark these as user-opened (remove from auto-expanded tracking)
+      subIds.forEach(sid => { expSubs.add(sid); _searchAutoExpanded.delete(sid); });
     }
-    buildGraph(); showDetail(d);
+    buildGraph();
+    if (!profilePanel.classList.contains("open")) showDetail(d);
     if (!selectedResId) zoomToNode(d);
   } else if (d.type === "subdomain") {
-    if (expSubs.has(d.id)) {
+    // Only treat as "open" if the user opened it (not just search-auto-expanded)
+    const userOpened = expSubs.has(d.id) && !_searchAutoExpanded.has(d.id);
+    if (userOpened) {
       expSubs.delete(d.id);
-      // Only clear researcher if they live inside this subdomain
       if (selectedResId && resParentMap[selectedResId] === d.id) {
         clearResearcher(); detEl.classList.remove("open");
       }
     } else {
-      expSubs.add(d.id);
+      // Expand: mark as user-opened
+      expSubs.add(d.id); _searchAutoExpanded.delete(d.id);
     }
-    buildGraph(); showDetail(d);
+    buildGraph();
+    if (!profilePanel.classList.contains("open")) showDetail(d);
     if (!selectedResId) zoomToNode(d);
   } else if (d.type === "lab") {
     if (expLabs.has(d.id)) expLabs.delete(d.id);
     else expLabs.add(d.id);
-    buildGraph(); showDetail(d);
+    buildGraph();
+    if (!profilePanel.classList.contains("open")) showDetail(d);
     if (!selectedResId) zoomToNode(d);
   } else if (d.type === "researcher") {
     if (d._isCollabGuest) {
@@ -1371,10 +1407,15 @@ function zoomToResearcherContext(d) {
 }
 
 // ── Search ─────────────────────────────────────────────────────────────────────
+// IDs of parent subdomains/domains whose researchers matched — keeps context bubbles visible
+const _searchContextIds = new Set();
+// The single result the user clicked — gets a brighter "focus" ring in the network
+let _searchFocusId = null;
+
 function matchesSearch(d) {
   if (!searchQ) return true;
   // Chat search: use the pre-computed matched ID set (tokenized word matching)
-  if (_searchMatchIds.size) return _searchMatchIds.has(d.id);
+  if (_searchMatchIds.size) return _searchMatchIds.has(d.id) || _searchContextIds.has(d.id);
   // Inline filter search-box: substring match
   const q = searchQ.toLowerCase();
   if ((d.name||"").toLowerCase().includes(q)) return true;
@@ -1383,6 +1424,21 @@ function matchesSearch(d) {
   if ((d.sample_pubs||[]).some(p=>(p.title||"").toLowerCase().includes(q))) return true;
   return false;
 }
+// Returns the search-state CSS class suffix for a node:
+//   " hl"         — matched by query or is a context domain/subdomain  (green glow)
+//   " search-vis" — researcher in an expanded subdomain that has a match (white/neutral)
+//   " dimmed"     — unrelated to this search                            (very faint)
+//   ""            — no active search
+function searchClass(d) {
+  if (!searchQ && !_searchMatchIds.size) return "";
+  // Exact match or context domain/subdomain → green glow
+  if (_searchMatchIds.has(d.id) || _searchContextIds.has(d.id)) return " hl";
+  // Researcher in an expanded subdomain that contains a match → white/neutral
+  if (d.type === "researcher" && _searchContextIds.has(resParentMap[d.id])) return " search-vis";
+  // Everything else → faded out
+  return " dimmed";
+}
+
 function applySearch() {
   if (!nodeSel) return;
   nodeSel.attr("class", d => {
@@ -1390,7 +1446,8 @@ function applySearch() {
     if ((d.type==="subdomain"  && expSubs.has(d.id)) ||
         (d.type==="lab"        && expLabs.has(d.id)) ||
         (d.type==="researcher" && expRes.has(d.id))) cls += " expanded";
-    if (searchQ) cls += matchesSearch(d) ? " hl" : " dimmed";
+    cls += searchClass(d);
+    if (_searchFocusId && d.id === _searchFocusId) cls += " focus";
     return cls;
   });
 }
@@ -1560,7 +1617,8 @@ function openProfilePanel(d, _fromNav) {
   profilePanel.classList.add("open");
   cw.classList.add("split");
   detEl.classList.remove("open");
-  setFilterCollapsed(true);
+  // Don't collapse filter/search panel if a search is active
+  if (!searchQ && !_searchMatchIds.size) setFilterCollapsed(true);
   // legend stays visible at bottom bar
 
   // Draw mini collab network after DOM is ready
@@ -1881,6 +1939,8 @@ function clearSearchResults() {
   // Clear search highlight
   searchQ = "";
   _searchMatchIds.clear();
+  _searchContextIds.clear();
+  _searchFocusId = null;
   document.getElementById("search-box").value = "";
   document.getElementById("chat-input").value = "";
   // Restore filter panel view
@@ -1965,7 +2025,13 @@ function handleChatQuery(raw) {
 
   // Build the match-ID set so matchesSearch() highlights exactly these nodes
   _searchMatchIds.clear();
-  top.forEach(r => _searchMatchIds.add(r.id));
+  _searchContextIds.clear();
+  top.forEach(r => {
+    _searchMatchIds.add(r.id);
+    // Keep parent subdomain + domain visible (not dimmed) so context bubbles show
+    if (r.subId) _searchContextIds.add(r.subId);
+    if (r.domId) _searchContextIds.add(r.domId);
+  });
 
   // ── Show results in the left filter panel ──────────────────────────
   // Make sure filter panel is open
@@ -2019,21 +2085,30 @@ function handleChatQuery(raw) {
   searchQ = ql;
   document.getElementById("search-box").value = "";
   buildGraph();
-  // After simulation settles, fit the view to show all highlighted nodes
+  // After simulation settles, fit the view to show the matching researcher nodes.
+  // Use researcher nodes (not subdomain circles) as the bounding box so they're
+  // actually visible — subdomain circles are much larger and would force the scale
+  // too low to see individual researcher bubbles.
   setTimeout(() => {
-    const hlNodes = (_currentVisNodes || []).filter(n => matchesSearch(n) && isFinite(n.x) && isFinite(n.y) && n._r);
-    if (hlNodes.length > 0) {
-      const pad = 120;
-      const x0 = Math.min(...hlNodes.map(n => n.x - n._r)) - pad;
-      const x1 = Math.max(...hlNodes.map(n => n.x + n._r)) + pad;
-      const y0 = Math.min(...hlNodes.map(n => n.y - n._r)) - pad;
-      const y1 = Math.max(...hlNodes.map(n => n.y + n._r)) + pad;
-      const scale = Math.min(1.6, Math.min(W / (x1 - x0), H / (y1 - y0)));
+    const resNodes = (_currentVisNodes || []).filter(n =>
+      n.type === "researcher" && _searchMatchIds.has(n.id) && isFinite(n.x) && isFinite(n.y) && n._r);
+    // Fall back to all highlighted nodes if no researcher coords are ready
+    const fitNodes = resNodes.length > 0 ? resNodes
+      : (_currentVisNodes || []).filter(n => _searchContextIds.has(n.id) && isFinite(n.x) && isFinite(n.y) && n._r);
+    if (fitNodes.length > 0) {
+      const pad = 80;
+      const x0 = Math.min(...fitNodes.map(n => n.x - n._r)) - pad;
+      const x1 = Math.max(...fitNodes.map(n => n.x + n._r)) + pad;
+      const y0 = Math.min(...fitNodes.map(n => n.y - n._r)) - pad;
+      const y1 = Math.max(...fitNodes.map(n => n.y + n._r)) + pad;
+      // Allow up to 3× so researcher bubbles are clearly visible
+      const scale = Math.min(3.0, Math.min(W / (x1 - x0), H / (y1 - y0)));
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      ({ W, H } = getWH());
       svg.transition().duration(700).call(zoom.transform,
         d3.zoomIdentity.translate(W / 2, H / 2).scale(scale).translate(-cx, -cy));
     }
-  }, 600);
+  }, 700);
 
   // ── Wire up result clicks ──────────────────────────────────────────
   document.getElementById("sr-clear-btn").onclick = clearSearchResults;
@@ -2041,35 +2116,47 @@ function handleChatQuery(raw) {
   srList.querySelectorAll(".sr-item").forEach(el => {
     el.addEventListener("click", () => {
       const { id, type, subid, domid } = el.dataset;
-      // Clear search state without calling buildGraph (we'll do one targeted build below)
-      _searchAutoExpanded.forEach(sid => expSubs.delete(sid));
-      _searchAutoExpanded.clear();
-      searchQ = "";
-      _searchMatchIds.clear();
-      document.getElementById("chat-input").value = "";
-      document.getElementById("search-results-view").classList.remove("visible");
-      document.getElementById("filter-main").classList.remove("hidden");
+      // Mark this item as active in the results list (keep panel open)
+      srList.querySelectorAll(".sr-item").forEach(i => i.classList.remove("active"));
+      el.classList.add("active");
 
       if (type === "domain") {
-        applyDomFilter(domMeta.map(d => d.id), false);
-        applyDomFilter([id], true);
+        const meta = domMeta.find(m => m.id === id);
+        if (meta) meta.subIds.forEach(sid => { expSubs.add(sid); _searchAutoExpanded.delete(sid); });
         buildGraph();
         const dn = nodeById[id];
-        if (dn) zoomToNode(dn);
+        if (dn) setTimeout(() => zoomToNode(dn), 400);
       } else if (type === "subdomain") {
-        if (domid) applyDomFilter([domid], true);
-        hiddenSubs.delete(id); expSubs.add(id);
+        hiddenSubs.delete(id); expSubs.add(id); _searchAutoExpanded.delete(id);
         buildGraph();
         const sn = nodeById[id];
-        if (sn) zoomToNode(sn);
+        if (sn) setTimeout(() => zoomToNode(sn), 400);
       } else if (type === "researcher") {
-        if (domid) applyDomFilter([domid], true);
-        if (subid) { hiddenSubs.delete(subid); expSubs.add(subid); }
-        selectResearcher(id);
-        buildGraph();
-        const rn = nodeById[id];
-        if (rn) { showDetail(rn); }
-        // zoomToResearcherContext fires in simulation on("end") via _needsResZoom
+        _searchFocusId = id;
+        // The search already called buildGraph() and auto-fit the view to show all
+        // highlighted nodes — preserve that view. Just apply the focus ring and open profile.
+        applySearch();
+        const sub = nodeById[subid];
+        const fullNode = nodeById[id] ||
+          (sub && sub._allRes && ensureResNode(sub._allRes.find(r => r.id === id) || { id }, sub));
+        if (fullNode) {
+          openProfilePanel(fullNode);
+          // After the panel transition, pulse the focus node into view only if it's
+          // a real UW node that the sim placed somewhere meaningful.
+          setTimeout(() => {
+            const rn = nodeById[id];
+            const sn = nodeById[subid];
+            // A node with stable coords: offset from its subdomain by at least 5px
+            const settled = rn && isFinite(rn.x) && isFinite(rn.y) && sn &&
+                            (Math.abs(rn.x - sn.x) > 5 || Math.abs(rn.y - sn.y) > 5);
+            if (settled) {
+              ({ W, H } = getWH());
+              svg.transition().duration(600).call(zoom.transform,
+                d3.zoomIdentity.translate(W / 2, H / 2).scale(4.5).translate(-rn.x, -rn.y));
+            }
+            // No zoom for external researchers — search auto-fit already shows the right view
+          }, 450);
+        }
       }
     });
   });
