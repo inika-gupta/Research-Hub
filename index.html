@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>UW Research Network</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  display: flex; width: 100vw; height: 100vh;
+  overflow: hidden; background: #0f1117;
+}
+
+/* ── Filter panel ───────────────────────────────────────────────── */
+#filter-panel {
+  width: 240px; flex-shrink: 0; height: 100vh;
+  background: rgba(18,20,28,0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(255,255,255,0.07);
+  overflow-y: auto; padding: 22px 16px 40px; z-index: 10;
+  color: #e8eaf0;
+}
+#filter-panel h2 {
+  font-size: 17px; font-weight: 700; letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #a8c4ff, #c4b5fd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 2px;
+}
+.panel-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-bottom: 18px; }
+.sec-lbl {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 8px;
+}
+.filter-hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 14px 0; }
+
+#search-box {
+  width: 100%; padding: 7px 10px; font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; outline: none;
+  margin-bottom: 14px; background: rgba(255,255,255,0.06);
+  color: #e8eaf0; transition: border-color 0.15s;
+}
+#search-box::placeholder { color: rgba(255,255,255,0.25); }
+#search-box:focus { border-color: rgba(168,196,255,0.5); background: rgba(255,255,255,0.09); }
+
+.year-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.year-row .sec-lbl { margin-bottom: 0; }
+#year-display { font-size: 11px; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+.range-wrap { position: relative; height: 24px; margin-bottom: 3px; }
+.range-track { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.1); transform: translateY(-50%); border-radius: 2px; }
+.range-fill  { position: absolute; top: 50%; height: 2px; background: rgba(168,196,255,0.7); transform: translateY(-50%); border-radius: 2px; pointer-events: none; }
+.range-wrap input[type=range] {
+  position: absolute; width: 100%; top: 50%; transform: translateY(-50%);
+  -webkit-appearance: none; background: transparent; pointer-events: none; height: 24px;
+}
+.range-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: #a8c4ff; border: 2px solid rgba(255,255,255,0.9);
+  pointer-events: all; cursor: grab; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.range-labels { display: flex; justify-content: space-between; font-size: 9px; color: rgba(255,255,255,0.25); margin-top: 2px; }
+
+/* Select all/none buttons */
+.sel-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.sel-btn {
+  font-size: 9.5px; color: rgba(168,196,255,0.7); cursor: pointer;
+  padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(168,196,255,0.2);
+  background: transparent; transition: all 0.12s;
+}
+.sel-btn:hover { background: rgba(168,196,255,0.12); color: #a8c4ff; }
+
+.dom-list { list-style: none; }
+.dom-item {
+  display: flex; align-items: center; gap: 7px; padding: 4px 2px;
+  border-radius: 5px; transition: background 0.1s;
+}
+.dom-item:hover { background: rgba(255,255,255,0.04); }
+.dom-item input { width: 12px; height: 12px; flex-shrink: 0; accent-color: #a8c4ff; cursor: pointer; }
+.dom-item .dn { flex: 1; font-size: 10.5px; color: rgba(255,255,255,0.3); }
+.dom-item.on .dn { color: rgba(255,255,255,0.85); font-weight: 500; }
+.dom-item .dc { font-size: 9.5px; color: rgba(255,255,255,0.2); font-variant-numeric: tabular-nums; }
+.dom-item.on .dc { color: rgba(255,255,255,0.4); }
+
+/* subdomain filter — shown when a domain is selected */
+.sub-items { padding-left: 16px; }
+.sub-item {
+  display: flex; align-items: center; gap: 6px; padding: 3px 2px;
+  font-size: 11px; color: rgba(255,255,255,0.3); border-radius: 4px;
+  transition: background 0.1s;
+}
+.sub-item:hover { background: rgba(255,255,255,0.04); }
+.sub-item input { width: 11px; height: 11px; flex-shrink: 0; accent-color: #c4b5fd; cursor: pointer; }
+.sub-item.on { color: rgba(255,255,255,0.75); }
+
+.hint { font-size: 9.5px; color: rgba(255,255,255,0.2); line-height: 1.7; margin-top: 16px; }
+.hint strong { color: rgba(255,255,255,0.4); font-weight: 600; }
+
+/* ── Canvas ──────────────────────────────────────────────────────── */
+#canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+#canvas {
+  width: 100%; height: 100%;
+  background: radial-gradient(ellipse at 30% 40%, rgba(30,40,80,0.5) 0%, #0f1117 70%);
+}
+/* subtle dot grid */
+#canvas {
+  background-image:
+    radial-gradient(ellipse at 30% 40%, rgba(50,70,140,0.4) 0%, transparent 60%),
+    radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 30px 30px;
+}
+
+/* ── Links ────────────────────────────────────────────────────────── */
+.lk { fill: none; }
+.lk-ds { stroke: rgba(168,196,255,0.2); stroke-width: 1.5; }
+.lk-sl { stroke: rgba(180,180,210,0.25); stroke-width: 1.0; }
+.lk-sr { stroke: rgba(180,200,180,0.2); stroke-width: 0.8; stroke-dasharray: 4 4; }
+.lk-lr { stroke: rgba(180,200,180,0.15); stroke-width: 0.7; stroke-dasharray: 3 4; }
+/* Collaboration arcs */
+.collab-arc { fill: none; stroke: rgba(255,190,80,0.07); pointer-events: none; }
+/* On-click researcher collab highlight lines */
+.collab-hl {
+  fill: none; stroke: rgba(100,220,200,0.6); stroke-width: 1.5;
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px rgba(100,220,200,0.4));
+}
+/* Collaborator guest nodes pulled in by click */
+.node.collab-guest > circle.node-bg {
+  fill: rgba(100,220,200,0.08) !important;
+  stroke: rgba(100,220,200,0.65) !important;
+  stroke-width: 1.8 !important;
+}
+/* Guest node "UW · Domain" badge */
+.t-guest-badge {
+  fill: rgba(100,220,200,0.75);
+  text-anchor: middle;
+  font-family: inherit;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+/* Subdomain that contains collaborators — glowing teal ring */
+.node.collab-sub-hl > circle.node-bg {
+  stroke: rgba(100,220,200,0.7) !important;
+  stroke-width: 2.5 !important;
+  filter: drop-shadow(0 0 8px rgba(100,220,200,0.35));
+}
+
+/* ── Nodes ────────────────────────────────────────────────────────── */
+.node { cursor: pointer; }
+.node circle { transition: filter 0.12s; }
+.node.domain circle {
+  fill: rgba(30,50,120,0.18);
+  stroke: rgba(168,196,255,0.35); stroke-width: 1.5; stroke-dasharray: 8 5;
+}
+.node.subdomain circle {
+  fill: rgba(255,255,255,0.08);
+  stroke: rgba(200,210,255,0.55); stroke-width: 1.8;
+}
+.node.lab circle {
+  fill: rgba(255,255,255,0.05);
+  stroke: rgba(180,190,230,0.4); stroke-width: 1.3;
+}
+.node.researcher > circle.node-bg {
+  fill: rgba(120,200,120,0.12);
+  stroke: rgba(120,210,140,0.55); stroke-width: 1;
+}
+
+.node.domain:hover circle     { filter: brightness(1.2); }
+.node.subdomain:hover circle  { filter: brightness(1.15); }
+.node.lab:hover circle        { filter: brightness(1.15); }
+.node.researcher:hover circle { filter: brightness(1.2); }
+
+.node.expanded > circle { stroke-opacity: 1; stroke-width: 2.5; }
+.node.dimmed { opacity: 0.07; pointer-events: none; }
+.node.hl circle {
+  stroke: rgba(100,220,200,0.9) !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 10px rgba(100,220,200,0.7)) !important;
+}
+.node.hl text { fill: rgba(100,255,220,0.95) !important; }
+
+.node text { pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+.t-dom-name { fill: rgba(200,215,255,0.9); font-weight: 700; }
+.t-dom-cnt  { fill: rgba(180,195,255,0.4); }
+.t-sub-name { fill: rgba(230,235,255,0.9); font-weight: 600; }
+.t-sub-cnt  { fill: rgba(200,205,255,0.45); }
+.t-lab-name { fill: rgba(200,210,240,0.8); font-weight: 500; }
+.t-res-name { fill: rgba(150,230,160,0.9); }
+
+/* Publication orbit dots — decorative count indicator, not interactive */
+.pub-dot {
+  fill: #5b8dee;
+  stroke: rgba(91,141,238,0.25); stroke-width: 0.5;
+  pointer-events: none;
+}
+.pub-more-text { fill: rgba(140,170,255,0.6); font-size: 8px; font-weight: 600; text-anchor: middle; pointer-events: none; }
+
+/* ── Tooltip ──────────────────────────────────────────────────────── */
+#tooltip {
+  position: absolute; pointer-events: none;
+  background: rgba(20,24,40,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 8px 12px;
+  font-size: 12px; color: rgba(230,235,255,0.9);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4); max-width: 230px; line-height: 1.55;
+  opacity: 0; transition: opacity 0.1s;
+}
+
+/* ── AI chat bar ──────────────────────────────────────────────────── */
+#chat-bar {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  width: min(520px, 80%); z-index: 15;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+}
+#chat-results {
+  max-height: 320px; overflow-y: auto;
+  background: rgba(14,17,32,0.94);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
+  padding: 10px 8px; display: none; flex-direction: column; gap: 4px;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
+}
+#chat-results.visible { display: flex; }
+.cr-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  transition: background 0.1s;
+}
+.cr-item:hover { background: rgba(255,255,255,0.06); }
+.cr-type {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 8px; flex-shrink: 0; margin-top: 1px;
+}
+.cr-type.domain    { background: rgba(168,196,255,0.15); color: rgba(168,196,255,0.8); }
+.cr-type.subdomain { background: rgba(200,200,255,0.12); color: rgba(200,200,255,0.7); }
+.cr-type.researcher{ background: rgba(120,210,140,0.15); color: rgba(120,210,140,0.8); }
+.cr-name { font-size: 12.5px; color: rgba(230,235,255,0.9); font-weight: 500; }
+.cr-sub  { font-size: 10.5px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+.cr-close {
+  font-size: 13px; color: rgba(255,255,255,0.25); cursor: pointer; padding: 2px 4px;
+  margin-left: auto; flex-shrink: 0; line-height: 1;
+}
+.cr-close:hover { color: rgba(255,255,255,0.6); }
+#chat-suggestions {
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  padding: 0 4px;
+}
+.chat-chip {
+  font-size: 10px; padding: 3px 10px; border-radius: 20px; cursor: pointer;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.4); transition: all 0.12s; white-space: nowrap;
+}
+.chat-chip:hover { background: rgba(168,196,255,0.12); border-color: rgba(168,196,255,0.25); color: #a8c4ff; }
+#chat-input-row {
+  display: flex; gap: 0;
+  background: rgba(18,22,40,0.82);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.06) inset;
+  overflow: hidden;
+}
+#chat-input {
+  flex: 1; padding: 11px 16px; font-size: 13px;
+  background: transparent; border: none; outline: none;
+  color: rgba(230,235,255,0.9);
+}
+#chat-input::placeholder { color: rgba(255,255,255,0.25); }
+#chat-send {
+  padding: 0 18px; background: transparent; border: none;
+  border-left: 1px solid rgba(255,255,255,0.08);
+  color: rgba(168,196,255,0.7); font-size: 16px; cursor: pointer;
+  transition: color 0.12s;
+}
+#chat-send:hover { color: #a8c4ff; }
+
+/* ── Controls ─────────────────────────────────────────────────────── */
+#controls { position: absolute; bottom: 24px; left: 12px; display: flex; flex-direction: column; gap: 4px; }
+.cbtn {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; font-size: 17px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; color: rgba(255,255,255,0.6); user-select: none;
+  transition: all 0.12s;
+}
+.cbtn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+#breset { border-color: rgba(100,220,200,0.3); color: rgba(100,220,200,0.8); margin-top: 4px; }
+#breset:hover { background: rgba(100,220,200,0.12); color: rgba(100,220,200,1); border-color: rgba(100,220,200,0.6); }
+
+/* ── Legend ───────────────────────────────────────────────────────── */
+#legend {
+  position: absolute; top: 14px; right: 14px;
+  background: rgba(15,17,23,0.75);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  padding: 10px 14px; font-size: 11px; color: rgba(220,225,240,0.7); line-height: 2;
+}
+#legend h4 { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; color: rgba(255,255,255,0.3); }
+.lr { display: flex; align-items: center; gap: 8px; }
+.lc { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.lc-d { background: rgba(30,50,120,0.4); border: 1.5px dashed rgba(168,196,255,0.5); }
+.lc-s { background: rgba(255,255,255,0.08); border: 1.5px solid rgba(200,210,255,0.55); }
+.lc-r { background: rgba(120,200,120,0.15); border: 1px solid rgba(120,210,140,0.55); }
+.lc-p { background: rgba(168,196,255,0.7); border: none; }
+
+/* ── Full-profile split panel ────────────────────────────────────── */
+#profile-panel {
+  width: 0; flex-shrink: 0; height: 100vh;
+  overflow: hidden;
+  background: #10131e;
+  border-left: 1px solid rgba(255,255,255,0.07);
+  transition: width 0.38s cubic-bezier(0.34,1.1,0.64,1);
+  position: relative; z-index: 20;
+}
+#profile-panel.open { width: 46vw; }
+#profile-inner {
+  width: 46vw; height: 100vh;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 32px 36px 60px;
+  color: rgba(230,235,255,0.88);
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+#profile-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; color: rgba(168,196,255,0.6); cursor: pointer;
+  padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(168,196,255,0.18);
+  background: rgba(168,196,255,0.06); margin-bottom: 28px; user-select: none;
+  transition: all 0.12s;
+}
+#profile-back:hover { background: rgba(168,196,255,0.14); color: #a8c4ff; }
+#profile-panel h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #fff; margin-bottom: 4px; }
+#profile-panel .p-tag {
+  display: inline-block; font-size: 10px; padding: 2px 9px; border-radius: 20px;
+  background: rgba(168,196,255,0.12); color: rgba(168,196,255,0.75);
+  border: 1px solid rgba(168,196,255,0.2); margin-bottom: 24px;
+}
+.pf { margin-bottom: 18px; }
+.pf strong {
+  display: block; font-size: 9px; font-weight: 700; letter-spacing: 0.11em;
+  color: rgba(255,255,255,0.28); text-transform: uppercase; margin-bottom: 5px;
+}
+.pf span, .pf a, .pf p { font-size: 13px; color: rgba(220,225,255,0.82); line-height: 1.6; }
+.pf a { color: #a8c4ff; text-decoration: none; }
+.pf a:hover { text-decoration: underline; }
+.pf-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0; }
+.ppub-row {
+  display: flex; gap: 12px; padding: 12px 14px; margin-bottom: 10px;
+  border-radius: 12px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07); line-height: 1.5;
+}
+.ppub-year { flex-shrink: 0; font-size: 11px; color: rgba(255,255,255,0.28); min-width: 36px; padding-top: 2px; }
+.ppub-title { font-size: 12.5px; color: rgba(220,225,255,0.85); }
+.ppub-title a { color: #a8c4ff; text-decoration: none; }
+.ppub-title a:hover { text-decoration: underline; }
+.ppub-venue { font-size: 10.5px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+.ppub-cite { font-size: 10.5px; color: rgba(168,196,255,0.45); margin-top: 2px; }
+
+/* CTA in floating detail panel */
+.prof-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; margin-bottom: 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(168,196,255,0.12), rgba(196,181,253,0.1));
+  border: 1px solid rgba(168,196,255,0.22);
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.prof-cta:hover { background: linear-gradient(135deg, rgba(168,196,255,0.2), rgba(196,181,253,0.16)); }
+.prof-cta span { font-size: 12px; font-weight: 600; color: rgba(200,215,255,0.9); }
+.prof-cta .arr { font-size: 14px; color: rgba(168,196,255,0.7); }
+
+/* ── Filter panel toggle ─────────────────────────────────────────── */
+#filter-toggle {
+  position: fixed; top: 50%; left: 240px; transform: translateY(-50%);
+  z-index: 100; width: 20px; height: 52px;
+  background: rgba(30,35,60,0.95);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.14); border-left: none;
+  border-radius: 0 10px 10px 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 700;
+  transition: left 0.32s cubic-bezier(0.34,1.1,0.64,1), width 0.2s, background 0.15s, color 0.15s;
+  user-select: none; box-shadow: 2px 0 12px rgba(0,0,0,0.3);
+}
+#filter-toggle:hover { background: rgba(60,80,150,0.98); color: #fff; width: 24px; }
+#filter-toggle.collapsed {
+  left: 0; width: 28px; height: 64px; border-radius: 0 12px 12px 0;
+  background: rgba(40,50,100,0.97); color: rgba(168,196,255,0.9);
+  font-size: 13px; border-color: rgba(168,196,255,0.25);
+  box-shadow: 3px 0 20px rgba(0,0,0,0.5);
+}
+#filter-toggle.collapsed:hover { background: rgba(60,80,160,0.99); color: #fff; width: 32px; }
+#filter-panel {
+  transition: width 0.32s cubic-bezier(0.34,1.1,0.64,1),
+              opacity 0.28s ease, padding 0.32s ease;
+}
+#filter-panel.collapsed { width: 0 !important; opacity: 0; padding: 0; overflow: hidden; }
+
+/* Search results replace filter content when a query is active */
+#filter-main { transition: opacity 0.18s; }
+#filter-main.hidden { display: none; }
+#search-results-view { display: none; flex-direction: column; gap: 0; }
+#search-results-view.visible { display: flex; }
+.sr-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.sr-count { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: .08em; }
+.sr-clear {
+  font-size: 10px; color: rgba(168,196,255,0.6); cursor: pointer;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(168,196,255,0.2);
+  background: transparent; transition: all 0.12s;
+}
+.sr-clear:hover { background: rgba(168,196,255,0.12); color: #a8c4ff; }
+.sr-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 6px; border-radius: 8px; cursor: pointer;
+  transition: background 0.1s; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.sr-item:last-child { border-bottom: none; }
+.sr-item:hover { background: rgba(255,255,255,0.05); }
+.sr-item .cr-type { margin-top: 2px; flex-shrink: 0; }
+.sr-name { font-size: 12px; color: rgba(230,235,255,0.88); font-weight: 500; line-height: 1.3; }
+.sr-sub  { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; line-height: 1.35; }
+
+/* canvas-wrap shrinks when split */
+#canvas-wrap { transition: flex 0.38s cubic-bezier(0.34,1.1,0.64,1), width 0.38s cubic-bezier(0.34,1.1,0.64,1); }
+#canvas-wrap.split { flex: 0 0 auto; width: 54vw; }
+
+/* ── Detail panel — floating glass ───────────────────────────────── */
+#detail {
+  position: absolute;
+  top: 50%; right: -360px;
+  transform: translateY(-50%);
+  width: 330px; max-height: 78vh;
+  background: rgba(18,22,40,0.78);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px;
+  box-shadow:
+    0 24px 60px rgba(0,0,0,0.5),
+    0 1px 0 rgba(255,255,255,0.08) inset,
+    inset 0 0 0 0.5px rgba(255,255,255,0.05);
+  padding: 20px 18px 24px;
+  overflow-y: auto; overflow-x: hidden;
+  transition: right 0.28s cubic-bezier(0.34,1.1,0.64,1);
+  font-size: 13px; line-height: 1.6;
+  color: rgba(230,235,255,0.88);
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+#detail.open { right: 20px; }
+#detail h2 { font-size: 15px; margin-bottom: 4px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+#detail .tag {
+  display: inline-block; font-size: 9.5px; padding: 2px 8px; border-radius: 20px;
+  background: rgba(168,196,255,0.15); color: rgba(168,196,255,0.8);
+  border: 1px solid rgba(168,196,255,0.2); margin-bottom: 14px;
+}
+.df { margin-bottom: 10px; }
+.df strong {
+  display: block; font-size: 8.5px; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px;
+}
+.df span, .df a, .df div { font-size: 12px; color: rgba(220,225,255,0.8); }
+#detail .x {
+  position: absolute; top: 14px; right: 16px; cursor: pointer;
+  font-size: 20px; color: rgba(255,255,255,0.25); line-height: 1;
+  transition: color 0.1s; width: 24px; height: 24px; text-align: center;
+}
+#detail .x:hover { color: rgba(255,255,255,0.8); }
+#detail a { color: #a8c4ff; text-decoration: none; }
+#detail a:hover { text-decoration: underline; }
+.pub-row {
+  display: flex; gap: 8px; margin-bottom: 10px; font-size: 11px; line-height: 1.45;
+  padding: 8px 10px; border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.pub-year { flex-shrink: 0; color: rgba(255,255,255,0.3); font-size: 10px; min-width: 32px; padding-top: 1px; }
+.pub-cite { font-size: 10px; color: rgba(168,196,255,0.5); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div id="filter-toggle" title="Toggle filters">‹</div>
+<div id="filter-panel">
+  <h2>UW Research</h2>
+  <div class="panel-sub">University of Washington · Research Network</div>
+
+  <input type="search" id="search-box" placeholder="Search researchers, topics…">
+
+  <!-- Search results view — shown when a query is active -->
+  <div id="search-results-view">
+    <div class="sr-header">
+      <span class="sr-count" id="sr-count"></span>
+      <button class="sr-clear" id="sr-clear-btn">✕ Clear</button>
+    </div>
+    <div id="sr-list"></div>
+  </div>
+
+  <!-- Filter controls — hidden when search results are showing -->
+  <div id="filter-main">
+    <div class="year-row">
+      <div class="sec-lbl">Year range</div>
+      <div id="year-display">— – —</div>
+    </div>
+    <div class="range-wrap">
+      <div class="range-track"></div>
+      <div class="range-fill" id="rfill"></div>
+      <input type="range" id="ymin" min="1960" max="2026" value="2000">
+      <input type="range" id="ymax" min="1960" max="2026" value="2026">
+    </div>
+    <div class="range-labels"><span id="lmin">1960</span><span id="lmax">2026</span></div>
+
+    <hr class="filter-hr">
+
+    <div class="sec-lbl">Domains</div>
+    <div class="sel-row">
+      <button class="sel-btn" id="dom-sel-all">Select all</button>
+      <button class="sel-btn" id="dom-sel-none">Deselect all</button>
+    </div>
+    <ul class="dom-list" id="dom-list"></ul>
+
+    <hr class="filter-hr">
+
+    <div class="sec-lbl">Sub-domains</div>
+    <div class="sel-row">
+      <button class="sel-btn" id="sub-sel-all">Select all</button>
+      <button class="sel-btn" id="sub-sel-none">Deselect all</button>
+    </div>
+    <ul class="dom-list" id="sub-list"></ul>
+
+    <div class="hint">
+      <strong>Click</strong> a sub-domain to reveal researchers.<br>
+      <strong>Click</strong> a researcher to see publications.<br>
+      <strong>Scroll</strong> to zoom · <strong>drag</strong> to pan.
+    </div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <svg id="canvas"></svg>
+  <div id="tooltip"></div>
+  <div id="controls">
+    <div class="cbtn" id="bzi">+</div>
+    <div class="cbtn" id="bzo">−</div>
+    <div class="cbtn" id="bfit">⊕</div>
+    <div class="cbtn" id="breset" title="Reset — collapse everything">↺</div>
+  </div>
+  <div id="legend">
+    <h4>Legend</h4>
+    <div class="lr"><div class="lc lc-d"></div> Domain</div>
+    <div class="lr"><div class="lc lc-s"></div> Sub-domain</div>
+    <div class="lr"><div class="lc lc-r"></div> Researcher</div>
+    <div class="lr"><div class="lc" style="background:rgba(100,220,200,0.08);border:1.5px solid rgba(100,220,200,0.65)"></div> Collaborator</div>
+    <div class="lr"><div class="lc lc-p" style="width:7px;height:7px"></div> Publication</div>
+    <div class="lr"><div style="width:20px;height:2px;background:rgba(100,220,200,0.65);border-radius:1px;flex-shrink:0;box-shadow:0 0 4px rgba(100,220,200,0.3)"></div> Collab connection</div>
+  </div>
+  <div id="chat-bar">
+    <div id="chat-results"></div>
+    <div id="chat-input-row">
+      <input id="chat-input" placeholder="Search UW research — try "autonomous vehicles", "climate", "Fred Rieke"…">
+      <button id="chat-send">↑</button>
+    </div>
+    <div id="chat-suggestions">
+      <span class="chat-chip" data-q="autonomous vehicles">Autonomous vehicles</span>
+      <span class="chat-chip" data-q="climate change">Climate change</span>
+      <span class="chat-chip" data-q="machine learning">Machine learning</span>
+      <span class="chat-chip" data-q="cancer">Cancer</span>
+      <span class="chat-chip" data-q="reset">Reset filters</span>
+    </div>
+  </div>
+  <div id="detail">
+    <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);margin:0 auto 14px;flex-shrink:0"></div>
+    <span class="x" id="det-x">×</span>
+    <div id="det-body"></div>
+  </div>
+</div>
+
+<div id="profile-panel">
+  <div id="profile-inner">
+    <div id="profile-back">← Back to network</div>
+    <div id="profile-body"></div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const MAX_RES   = 8;
+const MAX_PUB_DOTS = 20;  // dots drawn around researcher
+
+// ── Viewport ──────────────────────────────────────────────────────────────────
+const cw = document.getElementById("canvas-wrap");
+function getWH() { return { W: cw.clientWidth || window.innerWidth - 240, H: cw.clientHeight || window.innerHeight }; }
+let { W, H } = getWH();
+
+// ── Filter state ──────────────────────────────────────────────────────────────
+let fYMin = 2000, fYMax = 2026;
+const hiddenDoms = new Set();
+const hiddenSubs = new Set();
+let searchQ = "";
+let _searchMatchIds = new Set(); // node IDs matched by the last chat search (tokenized)
+
+// ── Node data ─────────────────────────────────────────────────────────────────
+let domNodes = [], subNodes = [], labNodes = [];
+let nodeById = {};
+let domMeta  = [];
+let domainCollabEdges = [];
+
+// ── Expansion state ───────────────────────────────────────────────────────────
+const expSubs = new Set();
+const expLabs = new Set();
+const expRes  = new Set();
+
+// ── Radius by type ────────────────────────────────────────────────────────────
+function filteredCount(n) {
+  if (!n || !n.year_counts) return n ? (n.paper_count || 0) : 0;
+  return Object.entries(n.year_counts)
+    .filter(([y]) => +y >= fYMin && +y <= fYMax)
+    .reduce((s, [, v]) => s + v, 0);
+}
+function getR(n) {
+  const v = Math.max(0, filteredCount(n));
+  switch (n.type) {
+    case "domain":     return Math.max(60,  Math.min(105, 50 + 12 * Math.log1p(v / 100)));
+    case "subdomain":  return Math.max(32,  Math.min(78,  32 + 13 * Math.log1p(v / 8)));
+    case "lab":        return Math.max(18,  Math.min(42,  18 + 8  * Math.log1p(v / 5)));
+    case "researcher": return Math.max(9,   Math.min(19,  9  + 3  * Math.log1p(v / 3)));
+    default:           return 10;
+  }
+}
+function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1)+"k" : String(n||0); }
+
+// ── Flatten from JSON ─────────────────────────────────────────────────────────
+function flattenData(root) {
+  domNodes = []; subNodes = []; labNodes = []; nodeById = {}; domMeta = [];
+
+  (root.children || []).forEach(domain => {
+    const subs = domain.children || [];
+    domMeta.push({ id: domain.id, name: domain.name,
+                   paper_count: domain.paper_count,
+                   researcher_count: domain.researcher_count,
+                   subIds: subs.map(s => s.id) });
+
+    const dn = {
+      id: domain.id, type: "domain",
+      name: domain.name,
+      paper_count: domain.paper_count,
+      researcher_count: domain.researcher_count,
+      year_counts: domain.year_counts || {},
+      _subCount: subs.length,
+    };
+    domNodes.push(dn);
+    nodeById[dn.id] = dn;
+
+    subs.forEach(sub => {
+      const sn = { ...sub, _domId: domain.id, _domName: domain.name };
+      sn._labIds = []; sn._allRes = []; sn._topRes = [];
+
+      (sub.children || []).forEach(child => {
+        if (child.type === "lab") {
+          const ln = { ...child, _subId: sub.id, _domId: domain.id };
+          ln._resChildren = (child.children || []).filter(c => c.type === "researcher");
+          delete ln.children;
+          labNodes.push(ln); nodeById[ln.id] = ln;
+          sn._labIds.push(ln.id);
+          ln._resChildren.forEach(r => sn._allRes.push(r));
+        } else if (child.type === "researcher") {
+          sn._allRes.push(child);
+        }
+      });
+
+      sn._topRes = [...sn._allRes]
+        .sort((a, b) => (b.paper_count || 0) - (a.paper_count || 0))
+        .slice(0, MAX_RES);
+
+      sn._allRes.forEach(r => { resParentMap[r.id] = sn.id; });
+
+      delete sn.children;
+      subNodes.push(sn); nodeById[sn.id] = sn;
+    });
+  });
+}
+
+let _domainsPinned = false;
+let selectedResId = null;
+let _needsResZoom  = false;
+const resParentMap = {}; // res_id → sub_id
+
+// ── Researcher selection state ────────────────────────────────────────────────
+// ALWAYS use these two functions to change selectedResId. Never assign it directly.
+// They keep selectedResId and _needsResZoom in sync, which is what prevents the
+// "connections disappear on domain click" bug from coming back.
+function selectResearcher(id) {
+  selectedResId = id;
+  _needsResZoom = true;   // zoom to context once, when simulation settles
+  expRes.clear();
+  if (id) expRes.add(id);
+}
+function clearResearcher() {
+  selectedResId = null;
+  _needsResZoom = false;
+  expRes.clear();
+}
+
+// ── Pre-position nodes ────────────────────────────────────────────────────────
+function prePosition() {
+  ({ W, H } = getWH());
+  const activeDoms = domNodes.filter(d => !hiddenDoms.has(d.id));
+  activeDoms.forEach(d => { d._r = getR(d); });
+  const n = activeDoms.length;
+
+  if (_domainsPinned) {
+    // Domains already have settled fx/fy from first simulation — leave them.
+  } else {
+    // Start domains in a tight jittered cluster near origin.
+    // The simulation's collision + centering forces will spread them into a
+    // natural filled cluster (no ring hollow) during first load.
+    const spread = Math.max(...activeDoms.map(d => d._r), 60) * 1.6;
+    activeDoms.forEach((dom, di) => {
+      const angle = (di / n) * 2 * Math.PI - Math.PI / 2;
+      // Stagger two concentric sub-rings so they spread outward, not just sideways
+      const tier  = di < Math.ceil(n / 2) ? 0.4 : 1.0;
+      dom.x = Math.cos(angle) * spread * tier + (Math.random() - 0.5) * 20;
+      dom.y = Math.sin(angle) * spread * tier + (Math.random() - 0.5) * 20;
+      delete dom.fx; delete dom.fy;  // free to move during first simulation
+    });
+  }
+
+  // Place subdomains just outside their domain hub
+  subNodes.forEach(sub => {
+    const dom = nodeById[sub._domId];
+    if (!dom || hiddenDoms.has(sub._domId)) return;
+    if (sub.x && sub.y) return;  // keep existing positions on rebuild
+    const a = Math.random() * Math.PI * 2;
+    const dist = (dom._r || 80) + (sub._r || 40) + 10;
+    sub.x = (dom.x || 0) + Math.cos(a) * dist;
+    sub.y = (dom.y || 0) + Math.sin(a) * dist;
+  });
+  labNodes.forEach(lab => {
+    const par = nodeById[lab._subId];
+    if (par && !lab.x) {
+      const a = Math.random() * Math.PI * 2;
+      lab.x = par.x + Math.cos(a) * ((par._r || 40) + 20);
+      lab.y = par.y + Math.sin(a) * ((par._r || 40) + 20);
+    }
+  });
+}
+
+// ── Lazy-create researcher node ───────────────────────────────────────────────
+function ensureResNode(r, parentNode) {
+  if (!nodeById[r.id]) {
+    const n = { ...r };
+    delete n.children;
+    // Use actual computed radius (or getR fallback) so spawning is outside the parent circle
+    const parentR = parentNode._r || getR(parentNode);
+    const nodeR   = n._r || getR(n);
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = parentR + nodeR + 10;
+    n.x = (parentNode.x || 0) + Math.cos(angle) * dist;
+    n.y = (parentNode.y || 0) + Math.sin(angle) * dist;
+    nodeById[r.id] = n;
+  }
+  return nodeById[r.id];
+}
+
+// ── Build active node + link sets ─────────────────────────────────────────────
+function getActive() {
+  const visSubIds = new Set(
+    subNodes.filter(n => !hiddenDoms.has(n._domId) && !hiddenSubs.has(n.id)).map(n => n.id)
+  );
+  const seen = new Set();
+  const visNodes = [], domSubL = [], hierL = [];
+  function add(n) { if (!seen.has(n.id)) { seen.add(n.id); visNodes.push(n); } }
+
+  domNodes.filter(d => !hiddenDoms.has(d.id)).forEach(add);
+
+  const visSubIdsActive = new Set();
+  subNodes.filter(n => visSubIds.has(n.id) && (n.researcher_count || n._allRes.length) > 0).forEach(sub => {
+    add(sub); visSubIdsActive.add(sub.id);
+    domSubL.push({ source: sub._domId, target: sub.id, lt: "ds" });
+  });
+
+  labNodes.filter(n => visSubIdsActive.has(n._subId) && (n._resChildren||[]).length > 0).forEach(lab => {
+    add(lab);
+    hierL.push({ source: lab._subId, target: lab.id, lt: "sl" });
+  });
+
+  expSubs.forEach(sid => {
+    if (!visSubIdsActive.has(sid)) return;
+    const sub = nodeById[sid];
+    if (!sub) return;
+    sub._topRes.forEach(r => {
+      const rn = ensureResNode(r, sub);
+      add(rn);
+      hierL.push({ source: sid, target: rn.id, lt: "sr" });
+    });
+  });
+
+  expLabs.forEach(lid => {
+    const lab = nodeById[lid];
+    if (!lab || !visSubIds.has(lab._subId)) return;
+    (lab._resChildren || []).forEach(r => {
+      const rn = ensureResNode(r, lab);
+      add(rn);
+      hierL.push({ source: lid, target: rn.id, lt: "lr" });
+    });
+  });
+
+  expRes.forEach(rid => {
+    const res = nodeById[rid];
+    if (!res) return;
+    if (!seen.has(rid)) add(res);
+  });
+
+  // Show collaborators for every expanded researcher, positioned near their OWN subdomain/domain
+  Object.values(nodeById).forEach(n => { n._isCollabGuest = false; });
+  expRes.forEach(rid => {
+    const res = nodeById[rid];
+    if (!res) return;
+    const collabList = (res.collab_ids || []);
+    const nc = collabList.length;
+    collabList.forEach((cid, ci) => {
+      if (seen.has(cid)) return;
+      const subId = resParentMap[cid];
+      if (!subId) return;
+      const sub = nodeById[subId];
+      if (!sub) return;
+      const resData = sub._allRes && sub._allRes.find(r => r.id === cid);
+      if (!resData) return;
+      // Spawn near the SELECTED researcher so connections stay short and readable.
+      // The domain label on the node tells users where they're from.
+      const rn = ensureResNode(resData, res);
+      const ax = res.x || 0, ay = res.y || 0;
+      const dx = (rn.x || 0) - ax, dy = (rn.y || 0) - ay;
+      // Spawn guests in a ring well outside the subdomain radius so they don't overlap the main cluster
+      const subNode = nodeById[resParentMap[res.id]];
+      const clusterR = subNode ? (subNode._r || getR(subNode)) + 60 : 120;
+      if (Math.hypot(dx, dy) < clusterR || (!rn.x && !rn.y)) {
+        const angle = (ci / Math.max(nc, 1)) * 2 * Math.PI - Math.PI / 2;
+        rn.x = ax + Math.cos(angle) * (clusterR + (rn._r || 12) + 20);
+        rn.y = ay + Math.sin(angle) * (clusterR + (rn._r || 12) + 20);
+        rn.vx = 0; rn.vy = 0;
+      }
+      rn._isCollabGuest = true;
+      rn._guestSubName = sub.name || "";
+      rn._guestDomName = sub._domName || "";
+      add(rn);
+      // Weak link to selected researcher to keep cluster tight
+      hierL.push({ source: rid, target: rn.id, lt: "guest" });
+    });
+  });
+
+  return { visNodes, domSubL, hierL };
+}
+
+// ── SVG setup ─────────────────────────────────────────────────────────────────
+const svg = d3.select("#canvas");
+({ W, H } = getWH());
+svg.attr("width", W).attr("height", H);
+const zg   = svg.append("g");
+const defs = svg.append("defs");
+const zoom = d3.zoom().scaleExtent([0.04, 14])
+  .on("zoom", e => { zg.attr("transform", e.transform); });
+svg.call(zoom).on("dblclick.zoom", null);
+
+let nodeSel, simul;
+let _currentVisNodes = [];  // tracks visible nodes from last buildGraph for fitView
+
+// ── Label helper ──────────────────────────────────────────────────────────────
+function labelLines(text, r, chPerPx) {
+  if (r < 11) return [];
+  const maxCh = Math.max(5, Math.floor(r / chPerPx));
+  if (text.length <= maxCh) return [text];
+  const words = text.split(/\s+/);
+  const lines = []; let line = "";
+  for (const w of words) {
+    const t = line ? line + " " + w : w;
+    if (t.length > maxCh && line) { lines.push(line); line = w; } else line = t;
+  }
+  if (line) lines.push(line);
+  if (lines.length > 3) { lines.length = 3; lines[2] = lines[2].slice(0, maxCh-1) + "…"; }
+  return lines;
+}
+
+function drawContent(g, d) {
+  const cpId = "cp_" + d.id.replace(/\W/g, "_");
+  const r = d._r;
+
+  if (d.type === "domain") {
+    const tg = g.append("g").attr("clip-path", `url(#${cpId})`);
+    const lines = labelLines(d.name || d.id, r, 3.8);
+    if (!lines.length) return;
+    const cnt = filteredCount(d);
+    const fs  = r >= 140 ? 13 : r >= 110 ? 11 : 9.5;
+    const lh  = fs * 1.35;
+    const rows = lines.length + 1;
+    const y0  = -(rows * lh) / 2 + lh * 0.55;
+    lines.forEach((w, i) =>
+      tg.append("text").attr("class","t-dom-name").attr("y", y0+i*lh).attr("font-size",fs).text(w));
+    tg.append("text").attr("class","t-dom-cnt").attr("y", y0+lines.length*lh)
+      .attr("font-size", fs*0.74).text(fmt(cnt)+" papers");
+
+  } else if (d.type === "subdomain") {
+    const tg = g.append("g").attr("clip-path", `url(#${cpId})`);
+    const lines = labelLines(d.name || d.id, r, 3.5);
+    if (!lines.length) return;
+    const cnt = filteredCount(d);
+    const fs  = r >= 68 ? 11 : r >= 50 ? 9.5 : r >= 36 ? 8.5 : 7;
+    const lh  = fs * 1.3;
+    const rows = lines.length + (r >= 36 ? 1 : 0);
+    const y0  = -(rows * lh) / 2 + lh * 0.55;
+    lines.forEach((w, i) =>
+      tg.append("text").attr("class","t-sub-name").attr("y", y0+i*lh).attr("font-size",fs).text(w));
+    if (r >= 36)
+      tg.append("text").attr("class","t-sub-cnt").attr("y", y0+lines.length*lh)
+        .attr("font-size",fs*0.76).text(fmt(cnt)+" papers");
+
+  } else if (d.type === "lab") {
+    const tg = g.append("g").attr("clip-path", `url(#${cpId})`);
+    const lines = labelLines(d.name || d.id, r, 3.8);
+    if (!lines.length) return;
+    const fs = r >= 34 ? 9.5 : r >= 20 ? 8 : 7;
+    const lh = fs * 1.25;
+    const y0 = -(lines.length * lh) / 2 + lh * 0.55;
+    lines.forEach((w, i) =>
+      tg.append("text").attr("class","t-lab-name").attr("y", y0+i*lh).attr("font-size",fs).text(w));
+
+  } else if (d.type === "researcher") {
+    if (r >= 9) {
+      const tg = g.append("g").attr("clip-path", `url(#${cpId})`);
+      const parts = (d.name || "").trim().split(/\s+/);
+      const fs = Math.max(5.5, Math.min(7.5, r * 0.46));
+      const lh = fs * 1.25;
+      // Truncate a string to fit within `px` pixels at font-size fs, adding "…"
+      const trunc = (str, px) => {
+        const chPx = fs * 0.56;
+        const max  = Math.floor(px / chPx);
+        return str.length <= max ? str : str.slice(0, Math.max(1, max - 1)) + "…";
+      };
+      if (parts.length >= 2) {
+        const first = parts[0];
+        const last  = parts.slice(1).join(" ");
+        const y1    = lh * 0.52;
+        // chord width at that y position inside the circle
+        const chord = (y) => 2 * Math.sqrt(Math.max(0, r * r - y * y)) * 0.84;
+        tg.append("text").attr("class","t-res-name").attr("font-size", fs).attr("y", -y1).text(trunc(first, chord(y1)));
+        tg.append("text").attr("class","t-res-name").attr("font-size", fs).attr("y",  y1).text(trunc(last,  chord(y1)));
+      } else {
+        const chord0 = 2 * r * 0.84;
+        tg.append("text").attr("class","t-res-name").attr("font-size", fs).text(trunc(parts[0] || "", chord0));
+      }
+    }
+    // Draw publication orbit dots when expanded
+    if (expRes.has(d.id)) {
+      drawPubDots(g, d);
+    }
+    // Guest collaborator: always-visible small "UW · Domain" badge below circle
+    if (d._isCollabGuest && d._guestDomName) {
+      const abbrevDom = name => {
+        if (name.length <= 14) return name;
+        const paren = name.match(/\(([A-Z]{2,6})\)/);
+        if (paren) return paren[1];
+        return name.split(/\W+/).filter(w => w.length > 2).map(w => w[0].toUpperCase()).join('');
+      };
+      g.append("text")
+        .attr("class", "t-guest-badge")
+        .attr("y", r + 9)
+        .attr("font-size", 6.5)
+        .text("UW · " + abbrevDom(d._guestDomName));
+    }
+  }
+}
+
+// ── Seeded RNG — stable dot positions per researcher across rebuilds ───────────
+function seededRng(id) {
+  let s = Array.from(id).reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 0x9e3779b9);
+  return () => { s = ((s ^ (s >>> 15)) * 0xd168aaad) | 0; s ^= s >>> 15; return (s >>> 0) / 4294967296; };
+}
+
+// ── Publication scatter dots ──────────────────────────────────────────────────
+// Random scatter, seeded per researcher so positions are stable.
+// Dot count and spread radius directly represent paper count.
+function drawPubDots(g, d) {
+  const total = d.paper_count || 0;
+  if (!total) return;
+
+  const rng      = seededRng(d.id);
+  const dotCount = Math.min(total, 55);
+  const innerR   = d._r + 2;
+  const outerR   = d._r + 2 + Math.min(Math.sqrt(dotCount) * 5, 36);
+
+  const pts = [];
+  for (let i = 0; i < dotCount; i++) {
+    let cx, cy, attempts = 0;
+    do {
+      // Polar → cartesian with random radius and angle
+      const r     = innerR + rng() * (outerR - innerR);
+      const angle = rng() * Math.PI * 2;
+      cx = Math.cos(angle) * r;
+      cy = Math.sin(angle) * r;
+      attempts++;
+    } while (attempts < 12 && pts.some(p => Math.hypot(p[0]-cx, p[1]-cy) < 4.5));
+    pts.push([cx, cy]);
+    const size = 1.5 + rng() * 1.5;   // 1.5–3 px, varied
+    const opacity = 0.55 + rng() * 0.45;
+    g.append("circle")
+      .attr("class", "pub-dot")
+      .attr("cx", cx).attr("cy", cy)
+      .attr("r",  size)
+      .style("opacity", opacity)
+      .style("cursor", "pointer")
+      .on("click", (e) => {
+        e.stopPropagation();
+        openProfilePanel(d);
+        requestAnimationFrame(() => {
+          const pubSection = document.getElementById("profile-pubs-section");
+          if (pubSection) pubSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      })
+      .on("mouseenter", function() { d3.select(this).attr("r", size + 1.5).style("opacity", 1); })
+      .on("mouseleave", function() { d3.select(this).attr("r", size).style("opacity", opacity); });
+  }
+
+  if (total > 55) {
+    g.append("text")
+      .attr("class", "pub-more-text")
+      .attr("y", -(outerR + 6))
+      .text(`${total} papers`);
+  }
+}
+
+// ── Simulation energy helper ──────────────────────────────────────────────────
+// CRITICAL: This is the single source of truth for simulation alpha values.
+//
+// Rule: when a researcher is selected AND this build was NOT triggered by a
+// direct researcher click (_needsResZoom is false), use the lowest possible
+// energy so existing researcher + collab-guest nodes barely move.
+// This is what keeps collab-connection lines visible after expanding domains.
+//
+// DO NOT inline these values elsewhere — always call simEnergy().
+function simEnergy(isFirst) {
+  if (isFirst)                            return { alpha: 0.6,  decay: 0.035 };
+  if (selectedResId && !_needsResZoom)    return { alpha: 0.06, decay: 0.12  };
+  return                                         { alpha: 0.18, decay: 0.08  };
+}
+
+// ── Build graph ───────────────────────────────────────────────────────────────
+let _isFirstBuild = true;
+function buildGraph() {
+  const isFirst = _isFirstBuild; _isFirstBuild = false;
+  // Safety: _needsResZoom must never be true without a selectedResId
+  if (!selectedResId) _needsResZoom = false;
+  const { visNodes, domSubL, hierL } = getActive();
+  _currentVisNodes = visNodes;
+  visNodes.forEach(n => { n._r = getR(n); });
+
+  zg.selectAll("*").remove();
+  defs.selectAll("clipPath").remove();
+
+  const allLinks = [...domSubL, ...hierL];
+
+  // Domain-level collab arcs (amber curves between domain hubs)
+  const activeDomIds = new Set(domNodes.filter(d => !hiddenDoms.has(d.id)).map(d => d.id));
+  const visibleDomCollabs = domainCollabEdges.filter(
+    e => activeDomIds.has(e.source) && activeDomIds.has(e.target)
+  );
+  const dcSel = zg.append("g").selectAll("path").data(visibleDomCollabs)
+    .join("path").attr("class","collab-arc")
+    .attr("stroke-width", e => Math.max(1, Math.min(4.5, e.count / 300)));
+
+  // Prepare collab highlight data (DOM elements created AFTER nodes for correct z-order)
+  let collabHlData = [];
+  const collabSubIds = new Set(); // subdomains containing collaborators
+  if (selectedResId) {
+    const selRes = nodeById[selectedResId];
+    if (selRes) {
+      collabHlData = (selRes.collab_ids || []).map(cid => ({
+        cid,
+        target: nodeById[cid] || nodeById[resParentMap[cid]]
+      })).filter(e => e.target);
+      // Collect subdomains these collaborators belong to
+      (selRes.collab_ids || []).forEach(cid => {
+        const subId = resParentMap[cid];
+        if (subId && subId !== resParentMap[selectedResId]) collabSubIds.add(subId);
+      });
+    }
+  }
+
+  const dlSel = zg.append("g").selectAll("line").data(domSubL)
+    .join("line").attr("class","lk lk-ds");
+  const hlSel = zg.append("g").selectAll("line").data(hierL)
+    .join("line").attr("class", d => `lk lk-${d.lt}`);
+
+  // Collab lines drawn HERE — above hierarchy links but below node circles,
+  // so lines are visible in the gaps between nodes but don't cover labels.
+  let collabHlSel = zg.append("g").selectAll("line").data(collabHlData)
+    .join("line").attr("class", "collab-hl");
+
+  visNodes.forEach(n => {
+    defs.append("clipPath").attr("id","cp_"+n.id.replace(/\W/g,"_"))
+      .append("circle").attr("r", Math.max(0, n._r - 2));
+  });
+
+  const sorted = [...visNodes].sort((a,b) => {
+    const order = {domain:0,subdomain:1,lab:2,researcher:3};
+    return (order[a.type]||5) - (order[b.type]||5);
+  });
+  nodeSel = zg.append("g").selectAll(".node")
+    .data(sorted, d => d.id)
+    .join("g")
+    .attr("class", d => {
+      let cls = `node ${d.type}`;
+      if ((d.type==="subdomain"  && expSubs.has(d.id)) ||
+          (d.type==="lab"        && expLabs.has(d.id)) ||
+          (d.type==="researcher" && expRes.has(d.id))) cls += " expanded";
+      if (d._isCollabGuest) cls += " collab-guest";
+      if (collabSubIds.has(d.id)) cls += " collab-sub-hl";
+      if (searchQ) cls += matchesSearch(d) ? " hl" : " dimmed";
+      return cls;
+    })
+    .attr("transform", d => `translate(${d.x||0},${d.y||0})`)
+    .call(d3.drag()
+      .on("start", (e,d) => { e.sourceEvent.stopPropagation(); if(!e.active) simul.alphaTarget(0.08).restart(); d.fx=d.x; d.fy=d.y; })
+      .on("drag",  (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on("end",   (e,d) => { if(!e.active) simul.alphaTarget(0);
+        // Keep domain nodes pinned where user dropped them; release others
+        if (d.type !== "domain") { d.fx=null; d.fy=null; }
+      }))
+    .on("click",      (e,d) => { e.stopPropagation(); handleClick(d); })
+    .on("mouseenter", (e,d) => { showTip(e,d); if (d._isCollabGuest) d3.select(e.currentTarget).select(".guest-label").style("opacity",1); })
+    .on("mousemove",  e => moveTip(e))
+    .on("mouseleave", (e,d) => { hideTip(); if (d._isCollabGuest) d3.select(e.currentTarget).select(".guest-label").style("opacity",0); });
+
+  nodeSel.append("circle").attr("class", "node-bg").attr("r", d => d._r);
+  nodeSel.each(function(d) { drawContent(d3.select(this), d); });
+
+  // Render helpers — called on every tick AND immediately so there's no flash of invisible lines
+  function arcPath(e) {
+    const s = nodeById[e.source], t = nodeById[e.target];
+    if (!s || !t) return "";
+    const dx = t.x - s.x, dy = t.y - s.y;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    const bow = len * 0.22;
+    const mx = (s.x + t.x) / 2 + (-dy / len) * bow;
+    const my = (s.y + t.y) / 2 + ( dx / len) * bow;
+    return `M${s.x},${s.y} Q${mx},${my} ${t.x},${t.y}`;
+  }
+  function updateCollabLines() {
+    if (!selectedResId) return;
+    const selRes = nodeById[selectedResId];
+    if (!selRes) return;
+    collabHlSel
+      .attr("x1", selRes.x || 0).attr("y1", selRes.y || 0)
+      .attr("x2", e => (e.target && e.target.x) || 0)
+      .attr("y2", e => (e.target && e.target.y) || 0);
+  }
+  // Draw immediately using current node positions (domains are pinned, so positions are valid)
+  dcSel.attr("d", arcPath);
+  updateCollabLines();
+
+  if (simul) simul.stop();
+  simul = d3.forceSimulation(visNodes)
+    .force("fds", d3.forceLink(domSubL).id(d=>d.id)
+      .distance(d => {
+        const src = nodeById[typeof d.source==="object"?d.source.id:d.source];
+        const tgt = nodeById[typeof d.target==="object"?d.target.id:d.target];
+        return (src?._r||90) + (tgt?._r||40) + 14;
+      }).strength(0.6))
+    .force("fhier", d3.forceLink(hierL).id(d=>d.id)
+      .distance(d => {
+        const src = nodeById[typeof d.source==="object"?d.source.id:d.source];
+        const tgt = nodeById[typeof d.target==="object"?d.target.id:d.target];
+        if (d.lt==="sl") return (src?._r||32) + 24 + 10;
+        if (d.lt==="sr") return (src?._r||32) + (tgt?._r||12) + 28;
+        if (d.lt==="lr") return (src?._r||18) + 14;
+        if (d.lt==="guest") return (src?._r||30) + (tgt?._r||12) + 24;
+        return 30;
+      }).strength(d => d.lt==="guest" ? 0.5 : 0.65))
+    .force("charge", d3.forceManyBody().strength(d => {
+      if (d.type==="domain")     return 0;
+      if (d.type==="subdomain")  return -120;
+      if (d.type==="lab")        return -60;
+      if (d.type==="researcher") return -40;
+      return 0;
+    }))
+    .force("collide", d3.forceCollide(d => {
+      if (d.type==="domain")    return d._r + 14;
+      if (d.type==="subdomain") return d._r + 8;
+      if (d.type==="lab")       return d._r + 6;
+      return d._r + 6;  // researcher / pub-node
+    }).strength(1.0).iterations(5))
+    .force("cx", d3.forceX(0).strength(d => d.type==="domain" ? (isFirst ? 0.04 : 0) : 0.008))
+    .force("cy", d3.forceY(0).strength(d => d.type==="domain" ? (isFirst ? 0.04 : 0) : 0.008))
+    .alpha(simEnergy(isFirst).alpha)
+    .alphaDecay(simEnergy(isFirst).decay)
+    .velocityDecay(isFirst ? 0.55 : 0.72)
+    .on("tick", () => {
+      dcSel.attr("d", arcPath);
+      updateCollabLines();
+      dlSel.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y)
+           .attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+      hlSel.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y)
+           .attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+      nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+    })
+    .on("end", () => {
+      if (isFirst) {
+        _domainsPinned = true;
+        domNodes.forEach(d => { if (!hiddenDoms.has(d.id)) { d.fx = d.x; d.fy = d.y; } });
+        fitView();
+      } else if (_needsResZoom && selectedResId) {
+        // Only zoom to researcher context when researcher was directly clicked —
+        // NOT on every domain/subdomain expansion while researcher is selected.
+        _needsResZoom = false;
+        const selRes = nodeById[selectedResId];
+        if (selRes) zoomToResearcherContext(selRes);
+      } else if (!selectedResId) {
+        fitView();
+      }
+      // When domain/subdomain clicked while researcher is selected: keep viewport as-is
+    });
+}
+
+function fitView() {
+  ({ W, H } = getWH());
+  const nodes = (_currentVisNodes || []).filter(n => isFinite(n.x) && isFinite(n.y) && n._r);
+  if (!nodes.length) return;
+  const pad = 80;
+  const x0 = Math.min(...nodes.map(n => n.x - n._r)) - pad;
+  const x1 = Math.max(...nodes.map(n => n.x + n._r)) + pad;
+  const y0 = Math.min(...nodes.map(n => n.y - n._r)) - pad;
+  const y1 = Math.max(...nodes.map(n => n.y + n._r)) + pad;
+  // Zoom in more when fewer nodes (e.g. single domain selected)
+  const maxScale = nodes.length <= 4 ? 2.5 : nodes.length <= 10 ? 1.8 : 1.1;
+  const scale = Math.min(maxScale, Math.min(W / (x1 - x0), H / (y1 - y0)));
+  if (scale <= 0) return;
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  svg.transition().duration(650).call(zoom.transform,
+    d3.zoomIdentity.translate(W / 2, H / 2).scale(scale).translate(-cx, -cy));
+}
+
+// ── Zoom to node ──────────────────────────────────────────────────────────────
+function zoomToNode(d) {
+  ({ W, H } = getWH());
+  const t = d3.zoomTransform(svg.node());
+  const newScale = Math.min(t.k * 1.45, 5);
+  svg.transition().duration(480).call(
+    zoom.transform,
+    d3.zoomIdentity.translate(W / 2, H / 2).scale(newScale).translate(-d.x, -d.y)
+  );
+}
+
+// ── Click handler ─────────────────────────────────────────────────────────────
+function handleClick(d) {
+  if (d.type === "domain") {
+    // Use domMeta for correct subId lookup (domain nodes don't carry children)
+    const meta = domMeta.find(m => m.id === d.id);
+    const subIds = meta ? meta.subIds : [];
+    const anyOpen = subIds.some(sid => expSubs.has(sid));
+    if (anyOpen) {
+      subIds.forEach(sid => { expSubs.delete(sid); expLabs.delete(sid); });
+      // Only clear researcher if they live inside this domain
+      if (selectedResId && subIds.includes(resParentMap[selectedResId])) {
+        clearResearcher(); detEl.classList.remove("open");
+      }
+    } else {
+      subIds.forEach(sid => expSubs.add(sid));
+    }
+    buildGraph(); showDetail(d);
+    if (!selectedResId) zoomToNode(d);
+  } else if (d.type === "subdomain") {
+    if (expSubs.has(d.id)) {
+      expSubs.delete(d.id);
+      // Only clear researcher if they live inside this subdomain
+      if (selectedResId && resParentMap[selectedResId] === d.id) {
+        clearResearcher(); detEl.classList.remove("open");
+      }
+    } else {
+      expSubs.add(d.id);
+    }
+    buildGraph(); showDetail(d);
+    if (!selectedResId) zoomToNode(d);
+  } else if (d.type === "lab") {
+    if (expLabs.has(d.id)) expLabs.delete(d.id);
+    else expLabs.add(d.id);
+    buildGraph(); showDetail(d);
+    if (!selectedResId) zoomToNode(d);
+  } else if (d.type === "researcher") {
+    if (d._isCollabGuest) {
+      // Clicking a collaborator bubble → switch to that researcher's profile
+      selectResearcher(d.id);
+      buildGraph(); showDetail(d);
+      return;
+    }
+    if (expRes.has(d.id)) {
+      // Clicking the same researcher again → collapse
+      clearResearcher();
+      detEl.classList.remove("open");
+      buildGraph();
+    } else {
+      // New researcher selected
+      selectResearcher(d.id);
+      showDetail(d);
+      buildGraph();
+    }
+  }
+}
+
+function zoomToResearcherContext(d) {
+  ({ W, H } = getWH());
+  // Gather the selected researcher + their collab guests
+  const pts = [d];
+  (d.collab_ids || []).forEach(cid => {
+    const n = nodeById[cid];
+    if (n && isFinite(n.x) && isFinite(n.y)) pts.push(n);
+  });
+  if (pts.length < 2) { zoomToNode(d); return; }
+
+  const pad = 80;
+  const xs = pts.map(p => p.x || 0), ys = pts.map(p => p.y || 0);
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad;
+  const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+
+  // Available canvas area (subtract filter panel on left, detail panel on right)
+  const availW = W - 80;  // small buffer
+  const availH = H - 60;
+  const scale = Math.min(4, Math.min(availW / (x1 - x0), availH / (y1 - y0)));
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+
+  svg.transition().duration(700).call(
+    zoom.transform,
+    d3.zoomIdentity.translate(W / 2, H / 2).scale(scale).translate(-cx, -cy)
+  );
+}
+
+// ── Search ─────────────────────────────────────────────────────────────────────
+function matchesSearch(d) {
+  if (!searchQ) return true;
+  // Chat search: use the pre-computed matched ID set (tokenized word matching)
+  if (_searchMatchIds.size) return _searchMatchIds.has(d.id);
+  // Inline filter search-box: substring match
+  const q = searchQ.toLowerCase();
+  if ((d.name||"").toLowerCase().includes(q)) return true;
+  if ((d.research_interests||"").toLowerCase().includes(q)) return true;
+  if ((d.department||"").toLowerCase().includes(q)) return true;
+  if ((d.sample_pubs||[]).some(p=>(p.title||"").toLowerCase().includes(q))) return true;
+  return false;
+}
+function applySearch() {
+  if (!nodeSel) return;
+  nodeSel.attr("class", d => {
+    let cls = `node ${d.type}`;
+    if ((d.type==="subdomain"  && expSubs.has(d.id)) ||
+        (d.type==="lab"        && expLabs.has(d.id)) ||
+        (d.type==="researcher" && expRes.has(d.id))) cls += " expanded";
+    if (searchQ) cls += matchesSearch(d) ? " hl" : " dimmed";
+    return cls;
+  });
+}
+document.getElementById("search-box").addEventListener("input", e => {
+  searchQ = e.target.value.trim();
+  applySearch();
+});
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+const tip = document.getElementById("tooltip");
+function showTip(e, d) {
+  const cnt = filteredCount(d);
+  let html = `<strong>${d.name||d.id}</strong>`;
+  if (d.type==="domain")     html += `<br><span style="opacity:0.6">Domain · ${fmt(cnt)} papers · ${d.researcher_count||0} researchers</span>`;
+  else if (d.type==="subdomain") html += `<br><span style="opacity:0.6">Sub-domain · ${fmt(cnt)} papers · ${d.researcher_count||0} researchers</span>`;
+  else if (d.type==="lab")   html += `<br><span style="opacity:0.6">Lab · ${fmt(cnt)} papers</span>`;
+  else if (d.type==="researcher") {
+    const loc = d._guestDomName ? ` · ${d._guestSubName ? d._guestSubName + " › " : ""}${d._guestDomName}` : "";
+    html += `<br><span style="opacity:0.6">${d.department||"Researcher"} · ${cnt} papers${loc}</span>`;
+  }
+  tip.innerHTML = html; tip.style.opacity = 1; moveTip(e);
+}
+function showPubTip(e, p) {
+  tip.innerHTML = `<strong>${(p.title||"Publication").slice(0,80)}${(p.title||"").length>80?"…":""}</strong><br><span style="opacity:0.6">${p.year||"—"} · ${p.citation_count||0} citations</span>`;
+  tip.style.opacity = 1; moveTip(e);
+}
+function moveTip(e) {
+  const r = cw.getBoundingClientRect();
+  tip.style.left = (e.clientX - r.left + 14) + "px";
+  tip.style.top  = (e.clientY - r.top  - 10) + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+
+// ── Detail panel (glass) ──────────────────────────────────────────────────────
+const detEl = document.getElementById("detail");
+function openDetail(html) {
+  document.getElementById("det-body").innerHTML = html;
+  detEl.classList.add("open");
+}
+function showDetail(d, showAllPubs) {
+  const cnt = filteredCount(d);
+  let h = `<h2>${d.name||d.id}</h2><span class="tag">${d.type}</span>`;
+
+  if (d.type === "domain") {
+    h += `<div class="df"><strong>Researchers</strong><span>${d.researcher_count||0}</span></div>`;
+    h += `<div class="df"><strong>Papers (${fYMin}–${fYMax})</strong><span>${fmt(cnt)}</span></div>`;
+    const subs = subNodes.filter(s => s._domId === d.id);
+    if (subs.length) h += `<div class="df"><strong>Sub-domains (${subs.length})</strong><span>${subs.map(s=>s.name).join(" · ")}</span></div>`;
+    h += `<div style="font-size:10.5px;color:rgba(255,255,255,0.3);margin-top:8px">Click the domain again to collapse · click a sub-domain to expand its researchers</div>`;
+
+  } else if (d.type === "subdomain") {
+    if (d._domName) h += `<div class="df"><strong>Domain</strong><span>${d._domName}</span></div>`;
+    h += `<div class="df"><strong>Papers (${fYMin}–${fYMax})</strong><span>${fmt(cnt)}</span></div>`;
+    h += `<div class="df"><strong>Researchers</strong><span>${d.researcher_count||0} total · showing top ${Math.min(MAX_RES,(d._allRes||[]).length)}</span></div>`;
+    h += `<div class="df"><strong>Labs</strong><span>${(d._labIds||[]).length}</span></div>`;
+    h += `<div style="font-size:10.5px;color:rgba(255,255,255,0.3);margin-top:8px">Click again to collapse</div>`;
+
+  } else if (d.type === "lab") {
+    if (d.pi_name)     h += `<div class="df"><strong>PI</strong><span>${d.pi_name}</span></div>`;
+    if (d.school)      h += `<div class="df"><strong>School</strong><span>${d.school}</span></div>`;
+    if (d.description) h += `<div class="df"><strong>About</strong><span>${d.description}</span></div>`;
+    if (d.website)     h += `<div class="df"><strong>Website</strong><a href="${d.website}" target="_blank">${d.website}</a></div>`;
+    h += `<div class="df"><strong>Researchers</strong><span>${d.researcher_count||0}</span></div>`;
+    h += `<div class="df"><strong>Papers (${fYMin}–${fYMax})</strong><span>${fmt(cnt)}</span></div>`;
+
+  } else if (d.type === "researcher") {
+    h += `<div class="prof-cta" id="prof-cta-btn"><span>View full profile</span><span class="arr">→</span></div>`;
+    if (d.title)       h += `<div class="df"><strong>Title</strong><span>${d.title}</span></div>`;
+    if (d.department)  h += `<div class="df"><strong>Department</strong><span>${d.department}</span></div>`;
+    if (d.research_interests) h += `<div class="df"><strong>Research Interests</strong><span>${d.research_interests}</span></div>`;
+    h += `<div class="df"><strong>Total Papers</strong><span>${d.paper_count||0}</span></div>`;
+    h += `<div class="df"><strong>Papers in Range</strong><span>${cnt}</span></div>`;
+  }
+  openDetail(h);
+  if (d.type === "researcher") {
+    const ctaBtn = document.getElementById("prof-cta-btn");
+    if (ctaBtn) ctaBtn.onclick = () => openProfilePanel(d);
+  }
+}
+function showPubDetail(p) {
+  const href = p.doi ? `https://doi.org/${p.doi}` : "#";
+  let h = `<h2>${(p.title||"Publication").slice(0,80)}</h2><span class="tag">publication</span>`;
+  if (p.year)           h += `<div class="df"><strong>Year</strong><span>${p.year}</span></div>`;
+  if (p.venue)          h += `<div class="df"><strong>Venue</strong><span>${p.venue}</span></div>`;
+  if (p.citation_count) h += `<div class="df"><strong>Citations</strong><span>${p.citation_count}</span></div>`;
+  if (p.doi)            h += `<div class="df"><strong>DOI</strong><a href="${href}" target="_blank">${p.doi}</a></div>`;
+  openDetail(h);
+}
+document.getElementById("det-x").onclick = () => detEl.classList.remove("open");
+svg.on("click", () => { detEl.classList.remove("open"); });
+
+// ── Full-profile split panel ──────────────────────────────────────────────────
+const profilePanel = document.getElementById("profile-panel");
+const profileBody  = document.getElementById("profile-body");
+
+function openProfilePanel(d) {
+  const cnt = filteredCount(d);
+
+  // Header
+  let h = `<h1>${d.name || d.id}</h1>`;
+  if (d.title || d.department) {
+    h += `<div style="font-size:13px;color:rgba(255,255,255,0.45);margin-bottom:14px">${[d.title, d.department].filter(Boolean).join(' · ')}</div>`;
+  }
+
+  // Research interest tags
+  if (d.research_interests) {
+    const tags = d.research_interests.split(/,\s*/).filter(Boolean).slice(0, 8);
+    h += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px">`;
+    tags.forEach(t => {
+      h += `<span style="font-size:10.5px;padding:3px 10px;border-radius:20px;background:rgba(168,196,255,0.1);border:1px solid rgba(168,196,255,0.2);color:rgba(168,196,255,0.8)">${t.trim()}</span>`;
+    });
+    h += `</div>`;
+  }
+
+  // Stats row
+  h += `<div style="display:flex;gap:24px;margin-bottom:24px">
+    <div><div style="font-size:22px;font-weight:800;color:#fff">${d.paper_count || 0}</div><div style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.08em">Total papers</div></div>
+    <div><div style="font-size:22px;font-weight:800;color:#fff">${(d.collab_ids||[]).length}</div><div style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.08em">Key collaborators</div></div>
+  </div>`;
+
+  // Mini collab network placeholder
+  h += `<div class="pf"><strong>Collaboration Network</strong></div>`;
+  h += `<div id="collab-mini-wrap" style="width:100%;height:210px;margin-bottom:20px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)"></div>`;
+
+  h += `<hr class="pf-divider">`;
+
+  // Publications
+  const pubs = d.sample_pubs || [];
+  if (pubs.length) {
+    h += `<div class="pf" id="profile-pubs-section"><strong>Publications (${pubs.length} shown${d.paper_count > pubs.length ? ` of ${d.paper_count} total` : ""})</strong></div>`;
+    pubs.forEach(p => {
+      const href = p.doi ? `https://doi.org/${p.doi}` : "#";
+      h += `<div class="ppub-row">
+        <div class="ppub-year">${p.year || "—"}</div>
+        <div>
+          <div class="ppub-title"><a href="${href}" target="_blank">${p.title || "Untitled"}</a></div>
+          ${p.venue ? `<div class="ppub-venue">${p.venue}</div>` : ""}
+          <div class="ppub-cite">${p.citation_count || 0} citations</div>
+        </div>
+      </div>`;
+    });
+    if (d.paper_count > pubs.length) {
+      h += `<div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:8px">${d.paper_count - pubs.length} more papers not shown</div>`;
+    }
+  }
+
+  if (d.orcid) h += `<div style="margin-top:20px;font-size:11px;color:rgba(255,255,255,0.25)">ORCID: <a href="https://orcid.org/${d.orcid}" target="_blank" style="color:#a8c4ff">${d.orcid}</a></div>`;
+  if (d.profile_url) h += `<div style="margin-top:6px;font-size:10px;color:rgba(255,255,255,0.18)">Source: <a href="${d.profile_url}" target="_blank" style="color:rgba(168,196,255,0.4)">OpenAlex</a></div>`;
+
+  profileBody.innerHTML = h;
+  profilePanel.classList.add("open");
+  cw.classList.add("split");
+  detEl.classList.remove("open");
+  setFilterCollapsed(true);
+  document.getElementById("legend").style.display = "none";
+
+  // Draw mini collab network after DOM is ready
+  requestAnimationFrame(() => initMiniCollabNetwork(d));
+}
+
+function initMiniCollabNetwork(d) {
+  const wrap = document.getElementById("collab-mini-wrap");
+  if (!wrap) return;
+  const W = wrap.clientWidth || 360, H = 210;
+
+  const collabIds = (d.collab_ids || []).slice(0, 8);
+  const nodes = [{ id: d.id, name: d.name, self: true, r: 24 }];
+  collabIds.forEach(cid => {
+    const c = nodeById[cid];
+    nodes.push({ id: cid, name: c ? c.name : cid, self: false, r: 16 });
+  });
+  const links = collabIds.map(cid => ({ source: d.id, target: cid }));
+
+  const svg = d3.select(wrap).append("svg").attr("width", W).attr("height", H)
+    .style("border-radius", "14px");
+
+  const sim = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(n => n.id).distance(85).strength(0.8))
+    .force("charge", d3.forceManyBody().strength(-160))
+    .force("center", d3.forceCenter(W / 2, H / 2))
+    .force("collide", d3.forceCollide(n => n.r + 10).strength(0.9))
+    .alphaDecay(0.04);
+
+  const lk = svg.append("g").selectAll("line").data(links).join("line")
+    .attr("stroke", "rgba(168,196,255,0.2)").attr("stroke-width", 1.2);
+
+  const ng = svg.append("g").selectAll("g").data(nodes).join("g");
+
+  ng.append("circle")
+    .attr("r", n => n.r)
+    .attr("fill", n => n.self ? "rgba(120,200,120,0.18)" : "rgba(168,196,255,0.08)")
+    .attr("stroke", n => n.self ? "rgba(120,210,140,0.65)" : "rgba(168,196,255,0.35)")
+    .attr("stroke-width", 1.5);
+
+  // Click collaborator nodes to navigate to their profile
+  ng.filter(n => !n.self)
+    .style("cursor", "pointer")
+    .on("mouseenter", function() { d3.select(this).select("circle").attr("stroke", "rgba(168,196,255,0.9)").attr("fill", "rgba(168,196,255,0.18)"); })
+    .on("mouseleave", function() { d3.select(this).select("circle").attr("stroke", "rgba(168,196,255,0.35)").attr("fill", "rgba(168,196,255,0.08)"); })
+    .on("click", (e, n) => {
+      const target = nodeById[n.id];
+      if (!target) return;
+      // Update main network: expand this researcher and highlight their connections
+      selectResearcher(n.id);
+      buildGraph();
+      zoomToNode(target);
+      // Open their profile in the panel
+      openProfilePanel(target);
+    });
+
+  ng.each(function(n) {
+    const g = d3.select(this);
+    const parts = (n.name || "").trim().split(/\s+/);
+    const fs = n.self ? 7.5 : 6.5;
+    const fill = n.self ? "rgba(150,240,160,0.95)" : "rgba(200,215,255,0.8)";
+    const lh = fs * 1.3;
+    const maxW = (n.r * 2 - 6);
+    const chPx = fs * 0.57;
+    const maxCh = Math.max(3, Math.floor(maxW / chPx));
+    const trunc = s => s.length > maxCh ? s.slice(0, maxCh - 1) + "…" : s;
+    if (parts.length >= 2) {
+      g.append("text").attr("text-anchor","middle").attr("font-size",fs).attr("fill",fill).attr("y",-lh*0.5).text(trunc(parts[0]));
+      g.append("text").attr("text-anchor","middle").attr("font-size",fs).attr("fill",fill).attr("y", lh*0.5).text(trunc(parts.slice(1).join(" ")));
+    } else {
+      g.append("text").attr("text-anchor","middle").attr("dominant-baseline","middle").attr("font-size",fs).attr("fill",fill).text(trunc(parts[0]||""));
+    }
+  });
+
+  sim.on("tick", () => {
+    lk.attr("x1", l => l.source.x).attr("y1", l => l.source.y)
+       .attr("x2", l => l.target.x).attr("y2", l => l.target.y);
+    ng.attr("transform", n =>
+      `translate(${Math.max(n.r+2, Math.min(W-n.r-2, n.x))},${Math.max(n.r+2, Math.min(H-n.r-2, n.y))})`
+    );
+  });
+}
+
+function closeProfilePanel() {
+  profilePanel.classList.remove("open");
+  cw.classList.remove("split");
+  setFilterCollapsed(false);
+  document.getElementById("legend").style.display = "";
+}
+
+document.getElementById("profile-back").addEventListener("click", closeProfilePanel);
+
+// ── Filter panel toggle ───────────────────────────────────────────────────────
+const filterPanel  = document.getElementById("filter-panel");
+const filterToggle = document.getElementById("filter-toggle");
+let filterCollapsed = false;
+
+function setFilterCollapsed(collapsed) {
+  filterCollapsed = collapsed;
+  filterPanel.classList.toggle("collapsed", collapsed);
+  filterToggle.classList.toggle("collapsed", collapsed);
+  filterToggle.textContent = collapsed ? "›" : "‹";
+}
+
+filterToggle.addEventListener("click", () => setFilterCollapsed(!filterCollapsed));
+
+// ── Draggable detail panel ────────────────────────────────────────────────────
+let _pdx=0, _pdy=0, _pox=0, _poy=0, _pdragging=false, _pendingDrag=false;
+detEl.style.cursor = "grab";
+detEl.addEventListener("mousedown", e => {
+  if (e.target.closest("a,button,.x,input")) return;
+  const pr  = detEl.getBoundingClientRect();
+  const cwr = cw.getBoundingClientRect();   // canvas-wrap is the offset parent
+  _pdx = e.clientX;
+  _pdy = e.clientY;
+  _pox = pr.left - cwr.left;  // panel position relative to canvas-wrap
+  _poy = pr.top  - cwr.top;
+  _pendingDrag = true;
+  e.preventDefault();
+});
+document.addEventListener("mousemove", e => {
+  if (_pendingDrag && !_pdragging) {
+    if (Math.hypot(e.clientX - _pdx, e.clientY - _pdy) > 4) {
+      _pdragging = true;
+      detEl.style.transition = "none";
+      detEl.style.cursor     = "grabbing";
+      detEl.style.right      = "auto";
+      detEl.style.transform  = "none";
+      detEl.style.left = _pox + "px";
+      detEl.style.top  = _poy + "px";
+    }
+  }
+  if (_pdragging) {
+    detEl.style.left = (_pox + e.clientX - _pdx) + "px";
+    detEl.style.top  = (_poy + e.clientY - _pdy) + "px";
+  }
+});
+document.addEventListener("mouseup", () => {
+  _pendingDrag = false;
+  if (_pdragging) { _pdragging = false; detEl.style.cursor = "grab"; }
+});
+
+// ── Zoom controls ─────────────────────────────────────────────────────────────
+document.getElementById("bzi").onclick  = () => svg.transition().duration(220).call(zoom.scaleBy, 1.5);
+document.getElementById("bzo").onclick  = () => svg.transition().duration(220).call(zoom.scaleBy, 1/1.5);
+document.getElementById("bfit").onclick = fitView;
+document.getElementById("breset").onclick = () => {
+  expSubs.clear(); expLabs.clear(); expRes.clear();
+  selectedResId = null; _needsResZoom = false;
+  detEl.classList.remove("open");
+  closeProfilePanel();
+  buildGraph();
+  fitView();
+};
+
+// ── Year slider ───────────────────────────────────────────────────────────────
+function updateSliderUI() {
+  const lo=+document.getElementById("ymin").value, hi=+document.getElementById("ymax").value;
+  const mn=+document.getElementById("ymin").min,   mx=+document.getElementById("ymin").max;
+  const t = mx - mn;
+  document.getElementById("rfill").style.left  = ((lo-mn)/t*100)+"%";
+  document.getElementById("rfill").style.width = ((hi-lo)/t*100)+"%";
+  document.getElementById("year-display").textContent = `${lo} – ${hi}`;
+}
+function onYearChange() {
+  let lo=+document.getElementById("ymin").value, hi=+document.getElementById("ymax").value;
+  if (lo>hi) { [lo,hi]=[hi,lo]; document.getElementById("ymin").value=lo; document.getElementById("ymax").value=hi; }
+  fYMin=lo; fYMax=hi;
+  updateSliderUI();
+  if (!nodeSel) return;
+  [...domNodes,...subNodes,...labNodes].forEach(n => { n._r=getR(n); });
+  Object.values(nodeById).forEach(n => { if (n.type==="researcher") n._r=getR(n); });
+  nodeSel.select("circle").attr("r", d=>d._r);
+  nodeSel.each(function(d) {
+    defs.select("#cp_"+d.id.replace(/\W/g,"_")+" circle").attr("r", Math.max(0,d._r-1.5));
+  });
+  nodeSel.selectAll("g[clip-path], circle.pub-dot, text.pub-more-text").remove();
+  nodeSel.each(function(d) { drawContent(d3.select(this), d); });
+  if (simul) {
+    const e = simEnergy(false);
+    simul.force("collide",d3.forceCollide(d=>d._r+6).strength(1.0).iterations(5))
+      .alpha(e.alpha).alphaDecay(e.decay).velocityDecay(0.72).restart();
+  }
+}
+document.getElementById("ymin").addEventListener("input", onYearChange);
+document.getElementById("ymax").addEventListener("input", onYearChange);
+
+// ── Domain & Subdomain filter ─────────────────────────────────────────────────
+let _allSubMeta = []; // {id, name, domId, paper_count, researcher_count}
+
+function buildDomList(domains) {
+  const ul = document.getElementById("dom-list");
+  ul.innerHTML = "";
+  domains.filter(d => (d.researcher_count||0) > 0).forEach(d => {
+    const li = document.createElement("li");
+    li.className = "dom-item on"; li.id = "dli-"+d.id;
+    li.innerHTML = `<input type="checkbox" checked id="chk-${d.id}">
+      <label class="dn" for="chk-${d.id}">${d.name}</label>
+      <span class="dc">${fmt(d.paper_count)}</span>`;
+    li.querySelector("input").addEventListener("change", e => {
+      li.classList.toggle("on", e.target.checked);
+      const subIds = (d.children || []).map(s => s.id);
+      if (e.target.checked) {
+        hiddenDoms.delete(d.id);
+        // Re-check all subdomains of this domain
+        subIds.forEach(sid => {
+          hiddenSubs.delete(sid);
+          const sli = document.getElementById("sli-" + sid);
+          if (sli) { sli.classList.add("on"); sli.querySelector("input").checked = true; }
+        });
+      } else {
+        hiddenDoms.add(d.id);
+        // Uncheck all subdomains of this domain
+        subIds.forEach(sid => {
+          hiddenSubs.add(sid);
+          const sli = document.getElementById("sli-" + sid);
+          if (sli) { sli.classList.remove("on"); sli.querySelector("input").checked = false; }
+        });
+      }
+      expSubs.clear(); expLabs.clear(); clearResearcher();
+      buildGraph();
+    });
+    ul.appendChild(li);
+  });
+}
+
+function buildSubList(domains) {
+  const ul = document.getElementById("sub-list");
+  ul.innerHTML = "";
+  _allSubMeta = [];
+  domains.filter(d => (d.researcher_count||0) > 0).forEach(domain => {
+    (domain.children||[]).filter(s=>(s.researcher_count||0)>0).forEach(sub => {
+      _allSubMeta.push({ id: sub.id, name: sub.name, domId: domain.id,
+                         paper_count: sub.paper_count, researcher_count: sub.researcher_count });
+      const li = document.createElement("li");
+      li.className = "sub-item on"; li.id = "sli-"+sub.id;
+      li.innerHTML = `<input type="checkbox" checked id="schk-${sub.id}">
+        <label for="schk-${sub.id}" style="flex:1">${sub.name}</label>
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.3)">${fmt(sub.paper_count)}</span>`;
+      li.querySelector("input").addEventListener("change", e => {
+        li.classList.toggle("on", e.target.checked);
+        if (e.target.checked) hiddenSubs.delete(sub.id);
+        else hiddenSubs.add(sub.id);
+        buildGraph();
+      });
+      ul.appendChild(li);
+    });
+  });
+}
+
+// Select all / deselect all
+document.getElementById("dom-sel-all").onclick = () => {
+  hiddenDoms.clear();
+  document.querySelectorAll("#dom-list .dom-item").forEach(li => {
+    li.classList.add("on");
+    li.querySelector("input").checked = true;
+  });
+  buildGraph();
+};
+document.getElementById("dom-sel-none").onclick = () => {
+  document.querySelectorAll("#dom-list .dom-item").forEach(li => {
+    const id = li.querySelector("input").id.replace("chk-","");
+    hiddenDoms.add(id);
+    li.classList.remove("on");
+    li.querySelector("input").checked = false;
+  });
+  expSubs.clear(); expLabs.clear(); expRes.clear();
+  selectedResId = null; _needsResZoom = false;
+  detEl.classList.remove("open");
+  buildGraph();
+};
+document.getElementById("sub-sel-all").onclick = () => {
+  hiddenSubs.clear();
+  document.querySelectorAll("#sub-list .sub-item").forEach(li => {
+    li.classList.add("on");
+    li.querySelector("input").checked = true;
+  });
+  buildGraph();
+};
+document.getElementById("sub-sel-none").onclick = () => {
+  document.querySelectorAll("#sub-list .sub-item").forEach(li => {
+    const id = li.querySelector("input").id.replace("schk-","");
+    hiddenSubs.add(id);
+    li.classList.remove("on");
+    li.querySelector("input").checked = false;
+  });
+  buildGraph();
+};
+
+// ── Research discovery search bar ─────────────────────────────────────────────
+const chatInput   = document.getElementById("chat-input");
+const chatResults = document.getElementById("chat-results");
+
+const _searchAutoExpanded = new Set(); // subdomains auto-expanded by search query
+
+function clearSearchResults() {
+  // Collapse any subdomains that were auto-expanded by the search
+  _searchAutoExpanded.forEach(sid => expSubs.delete(sid));
+  _searchAutoExpanded.clear();
+  // Clear search highlight
+  searchQ = "";
+  _searchMatchIds.clear();
+  document.getElementById("search-box").value = "";
+  document.getElementById("chat-input").value = "";
+  // Restore filter panel view
+  document.getElementById("search-results-view").classList.remove("visible");
+  document.getElementById("filter-main").classList.remove("hidden");
+  buildGraph();
+}
+
+function closeChatResults() {
+  // kept for compatibility — delegates to clearSearchResults
+  clearSearchResults();
+}
+
+function applyDomFilter(ids, show) {
+  ids.forEach(id => {
+    if (show) hiddenDoms.delete(id); else hiddenDoms.add(id);
+    const li = document.getElementById("dli-" + id);
+    if (!li) return;
+    li.classList.toggle("on", show);
+    li.querySelector("input").checked = show;
+    const dom = domMeta.find(d => d.id === id);
+    (dom?.subIds || []).forEach(sid => {
+      if (show) hiddenSubs.delete(sid); else hiddenSubs.add(sid);
+      const sli = document.getElementById("sli-" + sid);
+      if (sli) { sli.classList.toggle("on", show); sli.querySelector("input").checked = show; }
+    });
+  });
+}
+
+function scoreMatch(text, terms) {
+  const t = (text || "").toLowerCase();
+  return terms.reduce((s, term) => t.includes(term) ? s + 1 : s, 0);
+}
+
+function handleChatQuery(raw) {
+  const q = raw.trim();
+  if (!q) return;
+  const ql = q.toLowerCase();
+
+  // Reset command
+  if (/^(reset|clear|show all|all)$/i.test(q)) {
+    hiddenDoms.clear(); hiddenSubs.clear();
+    expSubs.clear(); expLabs.clear(); clearResearcher();
+    clearSearchResults();
+    document.querySelectorAll("#dom-list .dom-item").forEach(li => { li.classList.add("on"); li.querySelector("input").checked = true; });
+    document.querySelectorAll("#sub-list .sub-item").forEach(li => { li.classList.add("on"); li.querySelector("input").checked = true; });
+    return;
+  }
+
+  // Tokenize into meaningful terms (strip filler words)
+  const stopWords = new Set(["who","what","where","which","how","many","about","works","on","in","the","a","an","is","are","with","for","of","and","or","does","do","research","researchers","studying","study"]);
+  const terms = ql.split(/\s+/).filter(t => t.length > 2 && !stopWords.has(t));
+  if (!terms.length) return;
+
+  const results = [];
+
+  // Score domains
+  domMeta.forEach(d => {
+    const s = scoreMatch(d.name, terms);
+    if (s > 0) results.push({ type: "domain", id: d.id, name: d.name, sub: `${d.researcher_count} researchers · ${fmt(d.paper_count)} papers`, score: s * 3, data: d });
+  });
+
+  // Score subdomains
+  _allSubMeta.forEach(s => {
+    const sc = scoreMatch(s.name, terms);
+    if (sc > 0) results.push({ type: "subdomain", id: s.id, name: s.name, sub: `${s.researcher_count} researchers · ${fmt(s.paper_count)} papers`, score: sc * 2, data: s });
+  });
+
+  // Score researchers
+  subNodes.forEach(sub => {
+    (sub._allRes || []).forEach(r => {
+      const sc = scoreMatch(r.name, terms) * 4
+               + scoreMatch(r.research_interests, terms) * 3
+               + scoreMatch(r.department, terms)
+               + (r.sample_pubs || []).reduce((acc, p) => acc + scoreMatch(p.title, terms), 0);
+      if (sc > 0) results.push({ type: "researcher", id: r.id, name: r.name, sub: r.research_interests ? r.research_interests.split(",").slice(0,3).join(", ") : (r.department || ""), score: sc, data: r, subId: sub.id, domId: sub._domId });
+    });
+  });
+
+  results.sort((a, b) => b.score - a.score);
+  const top = results.slice(0, 12);
+
+  // Build the match-ID set so matchesSearch() highlights exactly these nodes
+  _searchMatchIds.clear();
+  top.forEach(r => _searchMatchIds.add(r.id));
+
+  // ── Show results in the left filter panel ──────────────────────────
+  // Make sure filter panel is open
+  if (filterCollapsed) setFilterCollapsed(false);
+
+  const srView  = document.getElementById("search-results-view");
+  const srList  = document.getElementById("sr-list");
+  const srCount = document.getElementById("sr-count");
+  const fMain   = document.getElementById("filter-main");
+
+  if (!top.length) {
+    srCount.textContent = `No results for "${q}"`;
+    srList.innerHTML = `<div style="padding:16px 4px;font-size:12px;color:rgba(255,255,255,0.3)">Try different keywords — e.g. "climate", "machine learning", "Fred Rieke".</div>`;
+  } else {
+    srCount.textContent = `${top.length} results for "${q}"`;
+    srList.innerHTML = top.map(r => `
+      <div class="sr-item" data-id="${r.id}" data-type="${r.type}" data-subid="${r.subId||""}" data-domid="${r.domId||""}">
+        <span class="cr-type ${r.type}">${r.type}</span>
+        <div style="min-width:0">
+          <div class="sr-name">${r.name}</div>
+          ${r.sub ? `<div class="sr-sub">${r.sub}</div>` : ""}
+        </div>
+      </div>`).join("");
+  }
+
+  srView.classList.add("visible");
+  fMain.classList.add("hidden");
+
+  // ── Represent results on the network ──────────────────────────────
+  // Collapse previously auto-expanded subs, then expand subs for new results
+  _searchAutoExpanded.forEach(sid => expSubs.delete(sid));
+  _searchAutoExpanded.clear();
+
+  top.forEach(r => {
+    if (r.type === "researcher" && r.subId) {
+      if (!expSubs.has(r.subId)) {
+        expSubs.add(r.subId);
+        _searchAutoExpanded.add(r.subId);
+      }
+      hiddenSubs.delete(r.subId);
+      if (r.domId) hiddenDoms.delete(r.domId);
+    } else if (r.type === "subdomain") {
+      if (!expSubs.has(r.id)) {
+        expSubs.add(r.id);
+        _searchAutoExpanded.add(r.id);
+      }
+    }
+  });
+
+  // Apply search highlight — matched nodes glow, others fade
+  searchQ = ql;
+  document.getElementById("search-box").value = "";
+  buildGraph();
+  // After simulation settles, fit the view to show all highlighted nodes
+  setTimeout(() => {
+    const hlNodes = (_currentVisNodes || []).filter(n => matchesSearch(n) && isFinite(n.x) && isFinite(n.y) && n._r);
+    if (hlNodes.length > 0) {
+      const pad = 120;
+      const x0 = Math.min(...hlNodes.map(n => n.x - n._r)) - pad;
+      const x1 = Math.max(...hlNodes.map(n => n.x + n._r)) + pad;
+      const y0 = Math.min(...hlNodes.map(n => n.y - n._r)) - pad;
+      const y1 = Math.max(...hlNodes.map(n => n.y + n._r)) + pad;
+      const scale = Math.min(1.6, Math.min(W / (x1 - x0), H / (y1 - y0)));
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      svg.transition().duration(700).call(zoom.transform,
+        d3.zoomIdentity.translate(W / 2, H / 2).scale(scale).translate(-cx, -cy));
+    }
+  }, 600);
+
+  // ── Wire up result clicks ──────────────────────────────────────────
+  document.getElementById("sr-clear-btn").onclick = clearSearchResults;
+
+  srList.querySelectorAll(".sr-item").forEach(el => {
+    el.addEventListener("click", () => {
+      const { id, type, subid, domid } = el.dataset;
+      // Clear search state without calling buildGraph (we'll do one targeted build below)
+      _searchAutoExpanded.forEach(sid => expSubs.delete(sid));
+      _searchAutoExpanded.clear();
+      searchQ = "";
+      _searchMatchIds.clear();
+      document.getElementById("chat-input").value = "";
+      document.getElementById("search-results-view").classList.remove("visible");
+      document.getElementById("filter-main").classList.remove("hidden");
+
+      if (type === "domain") {
+        applyDomFilter(domMeta.map(d => d.id), false);
+        applyDomFilter([id], true);
+        buildGraph();
+        const dn = nodeById[id];
+        if (dn) zoomToNode(dn);
+      } else if (type === "subdomain") {
+        if (domid) applyDomFilter([domid], true);
+        hiddenSubs.delete(id); expSubs.add(id);
+        buildGraph();
+        const sn = nodeById[id];
+        if (sn) zoomToNode(sn);
+      } else if (type === "researcher") {
+        if (domid) applyDomFilter([domid], true);
+        if (subid) { hiddenSubs.delete(subid); expSubs.add(subid); }
+        selectResearcher(id);
+        buildGraph();
+        const rn = nodeById[id];
+        if (rn) { showDetail(rn); }
+        // zoomToResearcherContext fires in simulation on("end") via _needsResZoom
+      }
+    });
+  });
+}
+
+// Keep query in bar after submitting — user can see what they searched
+document.getElementById("chat-send").addEventListener("click", () => { handleChatQuery(chatInput.value); });
+chatInput.addEventListener("keydown", e => { if (e.key === "Enter") { handleChatQuery(chatInput.value); } });
+document.querySelectorAll(".chat-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    chatInput.value = chip.dataset.q;
+    handleChatQuery(chip.dataset.q);
+  });
+});
+svg.on("click.chat", () => {}); // keep namespace registered, no-op (results are in panel now)
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+fetch("network_data.json")
+  .then(r => r.json())
+  .then(data => {
+    const years = new Set();
+    data.children.forEach(d => Object.keys(d.year_counts||{}).forEach(y => years.add(+y)));
+    const minY = Math.min(...years), maxY = Math.max(...years);
+    ["ymin","ymax"].forEach(id => { const el=document.getElementById(id); el.min=minY; el.max=maxY; });
+    document.getElementById("ymin").value = Math.max(minY,2000);
+    document.getElementById("ymax").value = maxY;
+    document.getElementById("lmin").textContent = minY;
+    document.getElementById("lmax").textContent = maxY;
+    fYMin = Math.max(minY,2000); fYMax = maxY;
+    updateSliderUI();
+
+    domainCollabEdges = data.domain_collabs || [];
+    buildDomList(data.children);
+    buildSubList(data.children);
+    flattenData(data);
+    prePosition();
+
+    // Start viewport centered at origin at a neutral scale.
+    // fitView() will tighten it once the simulation settles.
+    ({ W, H } = getWH());
+    svg.call(zoom.transform, d3.zoomIdentity.translate(W / 2, H / 2).scale(0.38));
+
+    buildGraph();
+  })
+  .catch(err => {
+    document.body.style.background="#0f1117";
+    document.body.innerHTML = `<div style="padding:60px;color:#ff6b6b;font-family:sans-serif;margin:auto">
+      <h2 style="margin-bottom:12px">Could not load network_data.json</h2>
+      <p style="color:#888">Run: <code style="background:#1a1d2e;padding:4px 8px;border-radius:4px">python prepare_data.py</code></p>
+      <p style="color:#888;margin-top:8px">Then: <code style="background:#1a1d2e;padding:4px 8px;border-radius:4px">python3 -m http.server 8765</code></p>
+      <pre style="margin-top:20px;color:#666;font-size:11px">${err}</pre></div>`;
+  });
+</script>
+</body>
+</html>
